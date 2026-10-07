@@ -3,7 +3,15 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
+import axios from 'axios';
+import FormData from 'form-data';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { Place } from './models/Place.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -29,16 +37,47 @@ app.get('/api/health', (req, res) => {
 app.post('/api/places', upload.single('photo'), async (req, res) => {
   try {
     const { title, description, lat, lng, createdBy } = req.body;
-    
-    // For MVP Step 1, we just save the basic info without AI processing
-    // We'll add the Gemma AI vision extraction in Step 2
+    let aiData = {
+      tags: [],
+      vibe: '',
+      bestTimeOfDay: '',
+      hazards: {},
+      isAiSuggested: false
+    };
+
+    // If a photo was uploaded, send it to the PaliGemma Python service
+    if (req.file) {
+      try {
+        const formData = new FormData();
+        formData.append('photo', fs.createReadStream(req.file.path));
+
+        console.log("Sending photo to AI service...");
+        const aiResponse = await axios.post('http://127.0.0.1:5001/analyze', formData, {
+          headers: { ...formData.getHeaders() }
+        });
+
+        if (aiResponse.data) {
+          aiData = {
+            tags: aiResponse.data.tags || [],
+            vibe: aiResponse.data.vibe || '',
+            bestTimeOfDay: aiResponse.data.bestTimeOfDay || '',
+            hazards: aiResponse.data.hazards || {},
+            isAiSuggested: true
+          };
+          console.log("AI analysis complete:", aiData);
+        }
+      } catch (aiError) {
+        console.error('AI Service Error (Continuing without AI data):', aiError.message);
+      }
+    }
     
     const newPlace = new Place({
       title,
       description,
       coordinates: { lat: Number(lat), lng: Number(lng) },
-      createdBy,
-      photoUrl: req.file ? `/uploads/${req.file.filename}` : null
+      createdBy: createdBy || 'Anonymous',
+      photoUrl: req.file ? `/uploads/${req.file.filename}` : null,
+      ...aiData
     });
     
     await newPlace.save();
@@ -56,6 +95,12 @@ app.get('/api/places', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// Serve the frontend in production
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
 });
 
 const PORT = process.env.PORT || 5000;
