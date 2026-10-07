@@ -99,19 +99,28 @@ function App() {
           <div className="auth-container">
             {user ? (
               <div className="user-profile">
-                <img src={user.picture} alt="Profile" />
+                {user.picture && <img src={user.picture} alt="Profile" />}
                 <span>{user.name}</span>
                 <button className="btn-secondary" onClick={() => setUser(null)} style={{ padding: '6px 12px', fontSize: '0.8rem' }}>Sign Out</button>
               </div>
             ) : (
-              <GoogleLogin
-                onSuccess={handleLoginSuccess}
-                onError={() => {
-                  console.log('Login Failed');
-                }}
-                theme="filled_black"
-                shape="pill"
-              />
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <GoogleLogin
+                  onSuccess={handleLoginSuccess}
+                  onError={() => {
+                    console.log('Login Failed');
+                  }}
+                  theme="filled_black"
+                  shape="pill"
+                />
+                <button 
+                  className="btn-primary" 
+                  onClick={() => setUser({ name: 'Test Explorer' })}
+                  style={{ padding: '0 16px', height: '40px', borderRadius: '50px' }}
+                >
+                  Test Login
+                </button>
+              </div>
             )}
           </div>
         </header>
