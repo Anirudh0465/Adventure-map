@@ -13,6 +13,7 @@ function App() {
   const [isAddingPlace, setIsAddingPlace] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [photo, setPhoto] = useState(null);
 
   // Fetch places from backend
   useEffect(() => {
@@ -51,28 +52,40 @@ function App() {
     }
   };
 
-  const handleSubmitPlace = (e) => {
+  const handleSubmitPlace = async (e) => {
     e.preventDefault();
     if (!title || !selectedLocation) return;
     
-    // Add to local state instantly (optimistic UI)
-    const newPlace = {
-      _id: Date.now().toString(),
-      title,
-      description,
-      coordinates: { lat: selectedLocation.lat, lng: selectedLocation.lng },
-      createdBy: user.name
-    };
+    // Create FormData for file upload
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('description', description);
+    formData.append('lat', selectedLocation.lat);
+    formData.append('lng', selectedLocation.lng);
+    formData.append('createdBy', user.name);
+    if (photo) {
+      formData.append('photo', photo);
+    }
     
-    setPlaces([...places, newPlace]);
-    
-    // Reset form
-    setIsAddingPlace(false);
-    setTitle('');
-    setDescription('');
-    setSelectedLocation(null);
-    
-    // TODO: Send to backend POST /api/places
+    try {
+      const response = await fetch('http://localhost:5000/api/places', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const newPlace = await response.json();
+      setPlaces([newPlace, ...places]);
+      
+      // Reset form
+      setIsAddingPlace(false);
+      setTitle('');
+      setDescription('');
+      setPhoto(null);
+      setSelectedLocation(null);
+    } catch (err) {
+      console.error("Error creating place:", err);
+      alert("Failed to drop pin. Is the backend running?");
+    }
   };
 
   return (
@@ -145,10 +158,15 @@ function App() {
                   ></textarea>
                 </div>
                 
-                {/* Photo upload will go here in Step 2 for AI processing */}
-                <div className="form-group" style={{ opacity: 0.5 }}>
-                  <label>Photo (AI will extract details) - Coming Soon</label>
-                  <input type="file" className="form-control" disabled />
+                {/* Photo upload */}
+                <div className="form-group">
+                  <label>Photo (AI will extract details)</label>
+                  <input 
+                    type="file" 
+                    className="form-control" 
+                    accept="image/*"
+                    onChange={(e) => setPhoto(e.target.files[0])}
+                  />
                 </div>
                 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
