@@ -8,12 +8,15 @@ import FormData from 'form-data';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { HfInference } from '@huggingface/inference';
 import { Place } from './models/Place.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config();
+
+const hf = new HfInference(process.env.HF_TOKEN);
 
 const app = express();
 app.use(cors());
@@ -45,30 +48,42 @@ app.post('/api/places', upload.single('photo'), async (req, res) => {
       isAiSuggested: false
     };
 
-    // If a photo was uploaded, send it to the PaliGemma Python service
-    if (req.file) {
+    // If a photo was uploaded, send it to HuggingFace Serverless API
+    if (req.file && process.env.HF_TOKEN) {
       try {
-        const formData = new FormData();
-        formData.append('photo', fs.createReadStream(req.file.path));
-
-        console.log("Sending photo to AI service...");
-        const aiResponse = await axios.post('http://127.0.0.1:5001/analyze', formData, {
-          headers: { ...formData.getHeaders() }
+        console.log("Sending photo to HuggingFace PaliGemma...");
+        const imageBuffer = fs.readFileSync(req.file.path);
+        
+        const aiResponse = await hf.visualQuestionAnswering({
+          model: 'google/paligemma-3b-mix-224',
+          inputs: {
+            image: imageBuffer,
+            question: "Output a JSON object with keys: 'tags' (list of 1-3 lowercase words describing location type like 'waterfall', 'ruins', 'park'), 'vibe' (1-3 word description of atmosphere), 'bestTimeOfDay' (suggested time to visit), 'hazards' (boolean object with keys: 'privateProperty', 'unstableStructures', 'water', 'wildlife'). Output ONLY valid JSON."
+          }
         });
 
-        if (aiResponse.data) {
-          aiData = {
-            tags: aiResponse.data.tags || [],
-            vibe: aiResponse.data.vibe || '',
-            bestTimeOfDay: aiResponse.data.bestTimeOfDay || '',
-            hazards: aiResponse.data.hazards || {},
-            isAiSuggested: true
-          };
-          console.log("AI analysis complete:", aiData);
+        if (aiResponse && aiResponse.answer) {
+          const resultStr = aiResponse.answer;
+          const jsonStart = resultStr.indexOf('{');
+          const jsonEnd = resultStr.lastIndexOf('}') + 1;
+          
+          if (jsonStart >= 0 && jsonEnd > jsonStart) {
+            const parsedData = JSON.parse(resultStr.substring(jsonStart, jsonEnd));
+            aiData = {
+              tags: parsedData.tags || [],
+              vibe: parsedData.vibe || '',
+              bestTimeOfDay: parsedData.bestTimeOfDay || '',
+              hazards: parsedData.hazards || {},
+              isAiSuggested: true
+            };
+            console.log("AI analysis complete:", aiData);
+          }
         }
       } catch (aiError) {
         console.error('AI Service Error (Continuing without AI data):', aiError.message);
       }
+    } else if (req.file && !process.env.HF_TOKEN) {
+      console.log("Skipping AI analysis: HF_TOKEN not set in environment.");
     }
     
     const newPlace = new Place({
