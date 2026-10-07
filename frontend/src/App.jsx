@@ -17,7 +17,7 @@ function App() {
 
   // Fetch places from backend
   useEffect(() => {
-    fetch('http://localhost:5000/api/places')
+    fetch('/api/places')
       .then(res => res.json())
       .then(data => setPlaces(data))
       .catch(err => console.error("Error fetching places:", err));
@@ -68,7 +68,7 @@ function App() {
     }
     
     try {
-      const response = await fetch('http://localhost:5000/api/places', {
+      const response = await fetch('/api/places', {
         method: 'POST',
         body: formData
       });
