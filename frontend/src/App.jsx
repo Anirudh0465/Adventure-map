@@ -204,6 +204,7 @@ function App() {
             onMarkerClick={handleMarkerClick} 
             mapStyleType={mapTheme} 
             trailPoints={isDrawingTrail ? trailPoints : (selectedPlace?.trail || [])}
+            selectedLocation={selectedLocation}
           />
 
           {/* Profile Panel */}

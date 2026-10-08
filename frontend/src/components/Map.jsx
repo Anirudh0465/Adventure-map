@@ -34,7 +34,7 @@ const satelliteStyle = {
   layers: [{ id: 'satellite-layer', type: 'raster', source: 'satellite', minzoom: 0, maxzoom: 19 }]
 };
 
-export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 'street', trailPoints = [] }) {
+export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 'street', trailPoints = [], selectedLocation = null }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const [lng] = useState(-122.3321); // Seattle Default
@@ -103,7 +103,25 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
         
       markersRef.current[place._id] = marker;
     });
-  }, [places, onMarkerClick]);
+
+    // Add temporary selected location marker
+    if (selectedLocation) {
+      const el = document.createElement('div');
+      el.className = 'marker';
+      el.style.backgroundColor = '#8B5CF6'; // Purple for active new pin
+      el.style.width = '24px';
+      el.style.height = '24px';
+      el.style.borderRadius = '50%';
+      el.style.border = '3px solid #FFFFFF';
+      el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([selectedLocation.lng, selectedLocation.lat])
+        .addTo(map.current);
+        
+      markersRef.current['temp_selected'] = marker;
+    }
+  }, [places, onMarkerClick, selectedLocation]);
 
   useEffect(() => {
     if (!map.current) return;
@@ -118,24 +136,32 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
 
     if (trailPoints.length === 0) return;
 
-    // 3. Draw the line connecting points
-    const coordinates = trailPoints.map(pt => [pt.lng, pt.lat]);
-    map.current.addSource('trail', {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'LineString', coordinates }
-      }
-    });
+    // 3. Draw the line connecting points (including destination if drawing)
+    let coordinates = trailPoints.map(pt => [pt.lng, pt.lat]);
+    
+    // Connect to the destination pin if it exists so it flows into the final marker
+    if (selectedLocation) {
+      coordinates.push([selectedLocation.lng, selectedLocation.lat]);
+    }
 
-    map.current.addLayer({
-      id: 'trail-line',
-      type: 'line',
-      source: 'trail',
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: { 'line-color': '#FFFFFF', 'line-width': 4, 'line-dasharray': [2, 2] }
-    });
+    if (coordinates.length >= 2) {
+      map.current.addSource('trail', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'LineString', coordinates }
+        }
+      });
+
+      map.current.addLayer({
+        id: 'trail-line',
+        type: 'line',
+        source: 'trail',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': '#FFFFFF', 'line-width': 4, 'line-dasharray': [2, 2] }
+      });
+    }
 
     // 4. Draw colored markers for each point based on difficulty type
     const typeColors = {
