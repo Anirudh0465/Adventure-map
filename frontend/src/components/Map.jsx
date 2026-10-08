@@ -136,39 +136,32 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
     trailMarkersRef.current.forEach(m => m.remove());
     trailMarkersRef.current = [];
 
-    // 2. Remove old GeoJSON line if exists
-    if (map.current.getLayer('trail-line')) map.current.removeLayer('trail-line');
-    if (map.current.getSource('trail')) map.current.removeSource('trail');
-
-    if (trailPoints.length === 0) return;
-
-    // 3. Draw the line connecting points (including destination if drawing)
+    // 2. Prepare the LineString data
     let coordinates = trailPoints.map(pt => [pt.lng, pt.lat]);
-    
-    // Connect to the destination pin if it exists so it flows into the final marker
     if (selectedLocation) {
       coordinates.push([selectedLocation.lng, selectedLocation.lat]);
     }
 
-    if (coordinates.length >= 2) {
-      map.current.addSource('trail', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: [{
-            type: 'Feature',
-            properties: {},
-            geometry: { type: 'LineString', coordinates }
-          }]
-        }
-      });
+    const geojsonData = {
+      type: 'FeatureCollection',
+      features: coordinates.length >= 2 ? [{
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'LineString', coordinates }
+      }] : []
+    };
 
+    // 3. Draw or update the line
+    if (map.current.getSource('trail')) {
+      map.current.getSource('trail').setData(geojsonData);
+    } else {
+      map.current.addSource('trail', { type: 'geojson', data: geojsonData });
       map.current.addLayer({
         id: 'trail-line',
         type: 'line',
         source: 'trail',
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#000000', 'line-width': 4 } // Solid black line for visibility
+        paint: { 'line-color': '#000000', 'line-width': 4 }
       });
     }
 
@@ -196,7 +189,7 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
       trailMarkersRef.current.push(marker);
     });
 
-  }, [trailPoints]);
+  }, [trailPoints, selectedLocation]);
 
   return (
     <div className="map-wrapper">
