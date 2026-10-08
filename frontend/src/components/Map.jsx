@@ -44,8 +44,8 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
   const poiMarkersRef = useRef([]); // track POI pins
   const onMapClickRef = useRef(onMapClick);
   const isDrawingRef = useRef(false);
-  const currentPathRef = useRef([]);
-  const latestGeoJSONRef = useRef({ type: 'FeatureCollection', features: [] });
+  const [activePath, setActivePath] = useState([]);
+  const [renderTick, setRenderTick] = useState(0);
 
   useEffect(() => {
     onMapClickRef.current = onMapClick;
@@ -76,48 +76,6 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
       }
     });
 
-    // Initialize Trail Layer permanently when style loads
-    const initTrailLayer = () => {
-      if (map.current && !map.current.getSource('trail')) {
-        map.current.addSource('trail', {
-          type: 'geojson',
-          data: latestGeoJSONRef.current
-        });
-        map.current.addLayer({
-          id: 'trail-line',
-          type: 'line',
-          source: 'trail',
-          layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: { 
-            'line-color': ['get', 'color'],
-            'line-width': 6
-          }
-        });
-        
-        // Active drawing source
-        map.current.addSource('active-trail', {
-          type: 'geojson',
-          data: { type: 'FeatureCollection', features: [] }
-        });
-        map.current.addLayer({
-          id: 'active-trail-line',
-          type: 'line',
-          source: 'active-trail',
-          layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: { 
-            'line-color': '#FFFFFF', 
-            'line-width': 6,
-            'line-dasharray': [2, 2] // Standard dashed line
-          }
-        });
-      }
-    };
-
-    map.current.on('style.load', initTrailLayer);
-    if (map.current.isStyleLoaded()) {
-      initTrailLayer();
-    }
-
     // Try to get user's location and fly to it
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -126,7 +84,7 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
             map.current.flyTo({
               center: [position.coords.longitude, position.coords.latitude],
               zoom: 12,
-              essential: true // this animation is considered essential with respect to prefers-reduced-motion
+              essential: true
             });
           }
         },
@@ -136,6 +94,11 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
         { enableHighAccuracy: true, timeout: 5000 }
       );
     }
+    
+    // Sync SVG overlay with map movements
+    const forceUpdate = () => setRenderTick(t => t + 1);
+    map.current.on('move', forceUpdate);
+    map.current.on('zoom', forceUpdate);
 
   }, [lng, lat, zoom]);
 
@@ -163,41 +126,25 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
       if (e.originalEvent.detail > 1) return; // ignore double click
       e.preventDefault();
       isDrawingRef.current = true;
-      currentPathRef.current = [{ lat: e.lngLat.lat, lng: e.lngLat.lng }];
+      setActivePath([{ lat: e.lngLat.lat, lng: e.lngLat.lng }]);
     };
 
     const onMouseMove = (e) => {
       if (!isDrawingFreehand || !isDrawingRef.current) return;
       e.preventDefault();
-      currentPathRef.current.push({ lat: e.lngLat.lat, lng: e.lngLat.lng });
-      
-      const source = map.current.getSource('active-trail');
-      if (source && currentPathRef.current.length > 1) {
-        source.setData({
-          type: 'FeatureCollection',
-          features: [{
-            type: 'Feature',
-            properties: {},
-            geometry: {
-              type: 'LineString',
-              coordinates: currentPathRef.current.map(p => [p.lng, p.lat])
-            }
-          }]
-        });
-      }
+      setActivePath(prev => [...prev, { lat: e.lngLat.lat, lng: e.lngLat.lng }]);
     };
 
     const onMouseUp = (e) => {
       if (!isDrawingFreehand || !isDrawingRef.current) return;
       isDrawingRef.current = false;
-      if (currentPathRef.current.length > 1 && onDrawFreehand) {
-        onDrawFreehand(currentPathRef.current);
-      }
-      currentPathRef.current = [];
-      const source = map.current.getSource('active-trail');
-      if (source) {
-        source.setData({ type: 'FeatureCollection', features: [] });
-      }
+      
+      setActivePath(current => {
+        if (current.length > 1 && onDrawFreehand) {
+          onDrawFreehand([...current]);
+        }
+        return [];
+      });
     };
 
     map.current.on('mousedown', onMouseDown);
@@ -293,44 +240,39 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
       poiMarkersRef.current.push(marker);
     });
 
-    // 3. Prepare colored LineString segments from strokes
-    let trailFeatures = [];
-    
-    trailStrokes.forEach(stroke => {
-      if (stroke.path && stroke.path.length > 1) {
-        
-        let strokeColor = '#FFFFFF';
-        if (stroke.type === 'moderate') strokeColor = '#EAB308';
-        if (stroke.type === 'danger') strokeColor = '#EF4444';
-        
-        trailFeatures.push({
-          type: 'Feature',
-          properties: { type: stroke.type, color: strokeColor },
-          geometry: {
-            type: 'LineString',
-            coordinates: stroke.path.map(p => [p.lng, p.lat])
-          }
-        });
-      }
-    });
+  }, [trailPOIs, selectedLocation]);
 
-    const geojsonData = {
-      type: 'FeatureCollection',
-      features: trailFeatures
-    };
-
-    latestGeoJSONRef.current = geojsonData;
-
-    // 4. Safely update the geojson data
-    const source = map.current?.getSource('trail');
-    if (source) {
-      source.setData(geojsonData);
-    }
-  }, [trailStrokes, trailPOIs, selectedLocation]);
+  const projectToSVG = (lng, lat) => {
+    if (!map.current) return { x: 0, y: 0 };
+    return map.current.project([lng, lat]);
+  };
 
   return (
-    <div className="map-wrapper">
-      <div ref={mapContainer} className="map-container" />
+    <div className="map-wrapper" style={{ position: 'relative' }}>
+      <div ref={mapContainer} className="map-container" style={{ width: '100%', height: '100%' }} />
+      
+      {/* 100% Bulletproof SVG Overlay for lines, completely bypassing MapLibre layers */}
+      <svg 
+        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10 }}
+      >
+        {trailStrokes.map((stroke, i) => {
+          if (!stroke.path || stroke.path.length < 2) return null;
+          const points = stroke.path.map(p => projectToSVG(p.lng, p.lat));
+          const d = `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}`;
+          let strokeColor = '#FFFFFF';
+          if (stroke.type === 'moderate') strokeColor = '#EAB308';
+          if (stroke.type === 'danger') strokeColor = '#EF4444';
+          return <path key={`stroke-${i}`} d={d} fill="none" stroke={strokeColor} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />;
+        })}
+        
+        {/* Active Path being drawn */}
+        {activePath.length > 1 && (
+          <path 
+            d={`M ${activePath.map(p => projectToSVG(p.lng, p.lat)).map(p => `${p.x},${p.y}`).join(' L ')}`} 
+            fill="none" stroke="#FFFFFF" strokeWidth="6" strokeDasharray="6 6" strokeLinecap="round" strokeLinejoin="round" 
+          />
+        )}
+      </svg>
     </div>
   );
 }
