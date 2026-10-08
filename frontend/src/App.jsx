@@ -14,6 +14,7 @@ function App() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [photo, setPhoto] = useState(null);
+  const [selectedPlace, setSelectedPlace] = useState(null);
 
   // Fetch places from backend
   useEffect(() => {
@@ -30,11 +31,12 @@ function App() {
     }
     setSelectedLocation(lngLat);
     setIsAddingPlace(true);
+    setSelectedPlace(null);
   };
 
   const handleMarkerClick = (place) => {
-    // Show place details (to be implemented)
-    console.log("Clicked place:", place.title);
+    setSelectedPlace(place);
+    setIsAddingPlace(false);
   };
 
   const handleLoginSuccess = (credentialResponse) => {
@@ -183,6 +185,56 @@ function App() {
                   <button type="submit" className="btn-primary" style={{ flex: 2 }}>Drop Pin</button>
                 </div>
               </form>
+            </div>
+          )}
+          
+          {/* Floating UI Panel (View Place Details) */}
+          {selectedPlace && !isAddingPlace && (
+            <div className="floating-ui glass-panel" style={{ position: 'relative' }}>
+              <button 
+                className="btn-secondary" 
+                style={{ position: 'absolute', top: '15px', right: '15px', padding: '4px 10px', minWidth: 'auto', borderRadius: '50%' }}
+                onClick={() => setSelectedPlace(null)}
+              >
+                ✕
+              </button>
+              
+              <h3 style={{ marginBottom: '15px', paddingRight: '30px' }}>{selectedPlace.title}</h3>
+              
+              {selectedPlace.photoUrl && (
+                <img 
+                  src={selectedPlace.photoUrl} 
+                  alt={selectedPlace.title} 
+                  style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '8px', marginBottom: '15px' }} 
+                />
+              )}
+              
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '15px', lineHeight: '1.5' }}>
+                {selectedPlace.description}
+              </p>
+              
+              {selectedPlace.tags && selectedPlace.tags.length > 0 && (
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '15px' }}>
+                  {selectedPlace.tags.map((tag, idx) => (
+                    <span key={idx} style={{ 
+                      backgroundColor: 'rgba(16, 185, 129, 0.15)', 
+                      color: 'var(--accent-primary)', 
+                      padding: '4px 12px', 
+                      borderRadius: '50px', 
+                      fontSize: '0.8rem',
+                      fontWeight: '500',
+                      border: '1px solid rgba(16, 185, 129, 0.3)'
+                    }}>
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+              
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px', display: 'flex', justifyContent: 'space-between' }}>
+                <span>By {selectedPlace.createdBy || 'Unknown'}</span>
+                {selectedPlace.isAiSuggested && <span style={{ color: '#8B5CF6', fontWeight: 'bold' }}>✨ AI Tagged</span>}
+              </div>
             </div>
           )}
           
