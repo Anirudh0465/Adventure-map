@@ -15,6 +15,7 @@ function App() {
   const [description, setDescription] = useState('');
   const [photo, setPhoto] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
+  const [mapTheme, setMapTheme] = useState('colorful');
 
   // Fetch places from backend
   useEffect(() => {
@@ -92,13 +93,21 @@ function App() {
 
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <div className="app-container">
+      <div className="app-container" data-map-theme={mapTheme}>
         
         {/* Header */}
         <header className="header glass-panel" style={{ borderRadius: 0, borderTop: 0, borderLeft: 0, borderRight: 0 }}>
           <div className="logo">Touch Grass</div>
           
           <div className="auth-container">
+            <button 
+              className="btn-secondary" 
+              onClick={() => setMapTheme(mapTheme === 'colorful' ? 'bw' : 'colorful')}
+              style={{ padding: '6px 12px', fontSize: '0.8rem', borderRadius: '50px' }}
+              title="Toggle Map Color"
+            >
+              {mapTheme === 'colorful' ? '🗺️ B&W Map' : '🗺️ Colorful Map'}
+            </button>
             {user ? (
               <div className="user-profile">
                 {user.picture && <img src={user.picture} alt="Profile" />}

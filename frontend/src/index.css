@@ -114,6 +114,9 @@ h1, h2, h3, h4 {
   height: 100%;
   min-height: calc(100vh - 80px); /* fallback */
   flex: 1;
+}
+
+[data-map-theme="bw"] .map-wrapper {
   filter: grayscale(100%) contrast(1.1);
 }
 
