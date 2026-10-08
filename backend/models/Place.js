@@ -38,6 +38,13 @@ const placeSchema = new mongoose.Schema({
     type: { type: String, default: 'normal' }
   }],
   
+  // Array of points of interest on the trail
+  trailPOIs: [{
+    lat: { type: Number, required: true },
+    lng: { type: Number, required: true },
+    poiType: { type: String, required: true } // 'danger', 'scenic', 'blocked'
+  }],
+  
   createdAt: { type: Date, default: Date.now }
 });
 

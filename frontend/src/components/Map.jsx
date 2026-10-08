@@ -34,7 +34,7 @@ const satelliteStyle = {
   layers: [{ id: 'satellite-layer', type: 'raster', source: 'satellite', minzoom: 0, maxzoom: 19 }]
 };
 
-export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 'street', trailPoints = [], selectedLocation = null }) {
+export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 'street', trailPoints = [], trailPOIs = [], selectedLocation = null }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const [lng] = useState(0); // Center of globe
@@ -42,6 +42,7 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
   const [zoom] = useState(2); // Globe view
   const markersRef = useRef({}); // keep track of markers
   const trailMarkersRef = useRef([]); // track trail dots
+  const poiMarkersRef = useRef([]); // track POI pins
   const onMapClickRef = useRef(onMapClick);
 
   useEffect(() => {
@@ -152,26 +153,51 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
   useEffect(() => {
     if (!map.current) return;
 
-    // 1. Remove old trail markers
+    // 1. Remove old markers
     trailMarkersRef.current.forEach(m => m.remove());
     trailMarkersRef.current = [];
+    poiMarkersRef.current.forEach(m => m.remove());
+    poiMarkersRef.current = [];
 
-    // 2. Draw colored markers for each point based on difficulty type
+    // 2. Draw colored POI pins (Square shape to stand out)
+    const poiColors = {
+      scenic: '#3B82F6', // Blue
+      danger: '#EF4444', // Red
+      poi: '#8B5CF6' // Purple
+    };
+
+    trailPOIs.forEach(pt => {
+      const el = document.createElement('div');
+      el.style.width = '18px';
+      el.style.height = '18px';
+      el.style.borderRadius = '4px';
+      el.style.backgroundColor = poiColors[pt.poiType] || '#8B5CF6';
+      el.style.border = '2px solid #FFFFFF';
+      el.style.boxShadow = '0 0 5px rgba(0,0,0,0.5)';
+      el.style.cursor = 'pointer';
+      el.title = pt.poiType.toUpperCase();
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([pt.lng, pt.lat])
+        .addTo(map.current);
+      
+      poiMarkersRef.current.push(marker);
+    });
+
+    // 3. Draw trail dots (for the path nodes, small)
     const typeColors = {
       normal: '#FFFFFF',
       moderate: '#EAB308', // yellow
-      scenic: '#3B82F6', // blue
       danger: '#EF4444' // red
     };
 
     trailPoints.forEach(pt => {
       const el = document.createElement('div');
-      el.style.width = '14px';
-      el.style.height = '14px';
+      el.style.width = '10px';
+      el.style.height = '10px';
       el.style.borderRadius = '50%';
       el.style.backgroundColor = typeColors[pt.type] || '#FFFFFF';
       el.style.border = '2px solid #000';
-      el.style.boxShadow = '0 0 5px rgba(255,255,255,0.5)';
 
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([pt.lng, pt.lat])
@@ -180,22 +206,34 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
       trailMarkersRef.current.push(marker);
     });
 
-    // 3. Prepare the LineString data
-    let coordinates = trailPoints.map(pt => [pt.lng, pt.lat]);
+    // 4. Prepare colored LineString segments
+    let trailFeatures = [];
+    let allPoints = [...trailPoints];
+    
+    // Connect selectedLocation to the start of the path
     if (selectedLocation) {
-      coordinates.push([selectedLocation.lng, selectedLocation.lat]);
+      allPoints.unshift({ lat: selectedLocation.lat, lng: selectedLocation.lng, type: 'normal' });
+    }
+
+    for (let i = 1; i < allPoints.length; i++) {
+      const prev = allPoints[i-1];
+      const curr = allPoints[i];
+      trailFeatures.push({
+        type: 'Feature',
+        properties: { type: curr.type },
+        geometry: {
+          type: 'LineString',
+          coordinates: [ [prev.lng, prev.lat], [curr.lng, curr.lat] ]
+        }
+      });
     }
 
     const geojsonData = {
       type: 'FeatureCollection',
-      features: coordinates.length >= 2 ? [{
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'LineString', coordinates }
-      }] : []
+      features: trailFeatures
     };
 
-    // 4. Draw or update the line
+    // 5. Draw or update the lines with data-driven colors
     try {
       if (map.current.getSource('trail')) {
         map.current.getSource('trail').setData(geojsonData);
@@ -206,13 +244,22 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
           type: 'line',
           source: 'trail',
           layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: { 'line-color': '#000000', 'line-width': 4 }
+          paint: { 
+            'line-color': [
+              'match',
+              ['get', 'type'],
+              'moderate', '#EAB308',
+              'danger', '#EF4444',
+              /* default */ '#FFFFFF'
+            ],
+            'line-width': 5 
+          }
         });
       }
     } catch (err) {
       console.warn('MapLibre failed to draw trail line:', err);
     }
-  }, [trailPoints, selectedLocation]);
+  }, [trailPoints, trailPOIs, selectedLocation]);
 
   return (
     <div className="map-wrapper">

@@ -88,12 +88,18 @@ app.put('/api/users/profile', async (req, res) => {
 // Route for creating a place
 app.post('/api/places', upload.single('photo'), async (req, res) => {
   try {
-    const { title, description, lat, lng, createdBy, authorId, trail } = req.body;
+    const { title, description, lat, lng, createdBy, authorId, trail, trailPOIs } = req.body;
     
     let parsedTrail = [];
     if (trail) {
       try { parsedTrail = JSON.parse(trail); } catch(e) {}
     }
+    
+    let parsedTrailPOIs = [];
+    if (trailPOIs) {
+      try { parsedTrailPOIs = JSON.parse(trailPOIs); } catch(e) {}
+    }
+    
     let aiData = {
       tags: [],
       vibe: '',
@@ -147,6 +153,7 @@ app.post('/api/places', upload.single('photo'), async (req, res) => {
       createdBy: createdBy || 'Anonymous',
       authorId: authorId || null,
       trail: parsedTrail,
+      trailPOIs: parsedTrailPOIs,
       photoUrl: req.file ? `/uploads/${req.file.filename}` : null,
       ...aiData
     });
