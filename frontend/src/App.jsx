@@ -3,8 +3,8 @@ import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import Map from './components/Map';
 import './index.css';
 
-// We will replace this with a real client ID from Google Cloud Console later
-const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+// We load this from the environment variables (e.g. .env file or Render dashboard)
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID";
 
 function App() {
   const [places, setPlaces] = useState([]);
@@ -116,22 +116,15 @@ function App() {
               </div>
             ) : (
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <GoogleLogin
-                  onSuccess={handleLoginSuccess}
-                  onError={() => {
-                    console.log('Login Failed');
-                  }}
-                  theme="filled_black"
-                  shape="pill"
-                />
-                <button 
-                  className="btn-primary" 
-                  onClick={() => setUser({ name: 'Test Explorer' })}
-                  style={{ padding: '0 16px', height: '40px', borderRadius: '50px' }}
-                >
-                  Test Login
-                </button>
-              </div>
+                  <GoogleLogin
+                    onSuccess={handleLoginSuccess}
+                    onError={() => {
+                      console.log('Login Failed');
+                    }}
+                    theme="filled_black"
+                    shape="pill"
+                  />
+                </div>
             )}
           </div>
         </header>
