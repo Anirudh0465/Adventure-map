@@ -28,11 +28,11 @@ async function seed() {
 
   for (const city of cities) {
     console.log(`\nFetching spots for ${city}...`);
-    
-    // Overpass QL to find viewpoints and ruins in the bounding area of the city
+    // Overpass QL to find viewpoints and ruins in the area
+    const cityName = city.split(',')[0];
     const query = `
       [out:json][timeout:25];
-      geocodeArea("${city}")->.searchArea;
+      area["name"="${cityName}"]->.searchArea;
       (
         node["tourism"="viewpoint"](area.searchArea);
         node["historic"="ruins"](area.searchArea);
@@ -41,9 +41,11 @@ async function seed() {
     `;
 
     try {
+      const params = new URLSearchParams();
+      params.append('data', query);
       const response = await fetch('https://overpass-api.de/api/interpreter', {
         method: 'POST',
-        body: query
+        body: params
       });
 
       const data = await response.json();
