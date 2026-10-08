@@ -19,7 +19,7 @@ function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [isDrawingTrail, setIsDrawingTrail] = useState(false);
   const [drawingMode, setDrawingMode] = useState('path'); // 'path' or 'poi'
-  const [trailPoints, setTrailPoints] = useState([]);
+  const [trailStrokes, setTrailStrokes] = useState([]);
   const [trailPOIs, setTrailPOIs] = useState([]);
   const [currentTrailType, setCurrentTrailType] = useState('normal'); // normal, moderate, danger
   const [currentPoiType, setCurrentPoiType] = useState('scenic'); // scenic, danger, poi
@@ -39,9 +39,7 @@ function App() {
     }
     if (isDrawingTrail) {
       if (!isDoubleClick) {
-        if (drawingMode === 'path') {
-          setTrailPoints([...trailPoints, { lat: lngLat.lat, lng: lngLat.lng, type: currentTrailType }]);
-        } else if (drawingMode === 'poi') {
+        if (drawingMode === 'poi') {
           setTrailPOIs([...trailPOIs, { lat: lngLat.lat, lng: lngLat.lng, poiType: currentPoiType }]);
         }
       }
@@ -58,6 +56,12 @@ function App() {
   const handleMarkerClick = (place) => {
     setSelectedPlace(place);
     setIsAddingPlace(false);
+  };
+
+  const handleDrawFreehand = (path) => {
+    if (path.length > 1) {
+      setTrailStrokes([...trailStrokes, { type: currentTrailType, path }]);
+    }
   };
 
   const handleLoginSuccess = async (credentialResponse) => {
@@ -95,8 +99,8 @@ function App() {
     formData.append('lng', selectedLocation.lng);
     formData.append('createdBy', user.username);
     formData.append('authorId', user._id);
-    if (trailPoints.length > 0) {
-      formData.append('trail', JSON.stringify(trailPoints));
+    if (trailStrokes.length > 0) {
+      formData.append('trailStrokes', JSON.stringify(trailStrokes));
     }
     if (trailPOIs.length > 0) {
       formData.append('trailPOIs', JSON.stringify(trailPOIs));
@@ -121,7 +125,7 @@ function App() {
       setPhoto(null);
       setSelectedLocation(null);
       setIsDrawingTrail(false);
-      setTrailPoints([]);
+      setTrailStrokes([]);
       setTrailPOIs([]);
       setDrawingMode('path');
     } catch (err) {
@@ -218,9 +222,12 @@ function App() {
             onMapClick={handleMapClick} 
             onMarkerClick={handleMarkerClick} 
             mapStyleType={mapTheme} 
-            trailPoints={isDrawingTrail ? trailPoints : (selectedPlace?.trail || [])}
+            trailStrokes={isDrawingTrail ? trailStrokes : (selectedPlace?.trailStrokes || [])}
             trailPOIs={isDrawingTrail ? trailPOIs : (selectedPlace?.trailPOIs || [])}
             selectedLocation={isAddingPlace ? selectedLocation : (selectedPlace?.coordinates || null)}
+            isDrawingFreehand={isDrawingTrail && drawingMode === 'path'}
+            onDrawFreehand={handleDrawFreehand}
+            currentDrawingType={currentTrailType}
           />
 
           {/* Profile Panel */}
@@ -295,11 +302,13 @@ function App() {
                   <label>Trail / Path</label>
                   {!isDrawingTrail ? (
                     <button type="button" className="btn-secondary" onClick={() => setIsDrawingTrail(true)}>
-                      Draw Trail on Map ({trailPoints.length} pts, {trailPOIs.length} pins)
+                      Draw Trail on Map ({trailStrokes.length} paths, {trailPOIs.length} pins)
                     </button>
                   ) : (
                     <div style={{ padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-                      <p style={{ fontSize: '0.8rem', marginBottom: '10px', color: 'var(--accent-primary)' }}>Click map to draw.</p>
+                      <p style={{ fontSize: '0.8rem', marginBottom: '10px', color: 'var(--accent-primary)' }}>
+                        {drawingMode === 'path' ? "Click and hold to paint a path." : "Click map to drop POI pins."}
+                      </p>
                       
                       <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
                         <button type="button" className={drawingMode === 'path' ? 'btn-primary' : 'btn-secondary'} style={{ flex: 1, padding: '4px' }} onClick={() => setDrawingMode('path')}>Path</button>
@@ -330,7 +339,7 @@ function App() {
                         </select>
                       )}
 
-                      <button type="button" className="btn-secondary" onClick={() => { setIsDrawingTrail(false); setTrailPoints([]); setTrailPOIs([]); }} style={{ marginRight: '10px', fontSize: '0.8rem' }}>Clear</button>
+                      <button type="button" className="btn-secondary" onClick={() => { setIsDrawingTrail(false); setTrailStrokes([]); setTrailPOIs([]); }} style={{ marginRight: '10px', fontSize: '0.8rem' }}>Clear</button>
                       <button type="button" className="btn-primary" onClick={() => setIsDrawingTrail(false)} style={{ fontSize: '0.8rem', padding: '6px 12px' }}>Done Drawing</button>
                     </div>
                   )}

@@ -34,16 +34,17 @@ const satelliteStyle = {
   layers: [{ id: 'satellite-layer', type: 'raster', source: 'satellite', minzoom: 0, maxzoom: 19 }]
 };
 
-export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 'street', trailPoints = [], trailPOIs = [], selectedLocation = null }) {
+export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 'street', trailStrokes = [], trailPOIs = [], selectedLocation = null, isDrawingFreehand = false, onDrawFreehand }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const [lng] = useState(0); // Center of globe
   const [lat] = useState(20);
   const [zoom] = useState(2); // Globe view
   const markersRef = useRef({}); // keep track of markers
-  const trailMarkersRef = useRef([]); // track trail dots
   const poiMarkersRef = useRef([]); // track POI pins
   const onMapClickRef = useRef(onMapClick);
+  const isDrawingRef = useRef(false);
+  const currentPathRef = useRef([]);
 
   useEffect(() => {
     onMapClickRef.current = onMapClick;
@@ -97,6 +98,23 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
             'line-width': 6
           }
         });
+        
+        // Active drawing source
+        map.current.addSource('active-trail', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+        map.current.addLayer({
+          id: 'active-trail-line',
+          type: 'line',
+          source: 'active-trail',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 
+            'line-color': '#FFFFFF', 
+            'line-width': 6,
+            'line-dasharray': [1, 2] // Dashed so user knows it's being drawn
+          }
+        });
       }
     };
 
@@ -130,6 +148,73 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
     if (!map.current) return;
     map.current.setStyle(mapStyleType === 'satellite' ? satelliteStyle : streetStyle);
   }, [mapStyleType]);
+
+  // Handle Map Panning Toggle
+  useEffect(() => {
+    if (!map.current) return;
+    if (isDrawingFreehand) {
+      map.current.dragPan.disable();
+    } else {
+      map.current.dragPan.enable();
+    }
+  }, [isDrawingFreehand]);
+
+  // Handle Freehand Drawing Mouse Events
+  useEffect(() => {
+    if (!map.current) return;
+    
+    const onMouseDown = (e) => {
+      if (!isDrawingFreehand) return;
+      if (e.originalEvent.detail > 1) return; // ignore double click
+      e.preventDefault();
+      isDrawingRef.current = true;
+      currentPathRef.current = [{ lat: e.lngLat.lat, lng: e.lngLat.lng }];
+    };
+
+    const onMouseMove = (e) => {
+      if (!isDrawingFreehand || !isDrawingRef.current) return;
+      e.preventDefault();
+      currentPathRef.current.push({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+      
+      const source = map.current.getSource('active-trail');
+      if (source && currentPathRef.current.length > 1) {
+        source.setData({
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: currentPathRef.current.map(p => [p.lng, p.lat])
+            }
+          }]
+        });
+      }
+    };
+
+    const onMouseUp = (e) => {
+      if (!isDrawingFreehand || !isDrawingRef.current) return;
+      isDrawingRef.current = false;
+      if (currentPathRef.current.length > 1 && onDrawFreehand) {
+        onDrawFreehand(currentPathRef.current);
+      }
+      currentPathRef.current = [];
+      const source = map.current.getSource('active-trail');
+      if (source) {
+        source.setData({ type: 'FeatureCollection', features: [] });
+      }
+    };
+
+    map.current.on('mousedown', onMouseDown);
+    map.current.on('mousemove', onMouseMove);
+    map.current.on('mouseup', onMouseUp);
+
+    return () => {
+      map.current.off('mousedown', onMouseDown);
+      map.current.off('mousemove', onMouseMove);
+      map.current.off('mouseup', onMouseUp);
+    };
+  }, [isDrawingFreehand, onDrawFreehand]);
 
   useEffect(() => {
     if (!map.current) return;
@@ -215,61 +300,33 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
       poiMarkersRef.current.push(marker);
     });
 
-    // 3. Draw trail dots (for the path nodes, small)
-    const typeColors = {
-      normal: '#FFFFFF',
-      moderate: '#EAB308', // yellow
-      danger: '#EF4444' // red
-    };
-
-    trailPoints.forEach(pt => {
-      const el = document.createElement('div');
-      el.style.width = '10px';
-      el.style.height = '10px';
-      el.style.borderRadius = '50%';
-      el.style.backgroundColor = typeColors[pt.type] || '#FFFFFF';
-      el.style.border = '2px solid #000';
-
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([pt.lng, pt.lat])
-        .addTo(map.current);
-      
-      trailMarkersRef.current.push(marker);
-    });
-
-    // 4. Prepare colored LineString segments
+    // 3. Prepare colored LineString segments from strokes
     let trailFeatures = [];
-    let allPoints = [...trailPoints];
     
-    // Connect selectedLocation to the start of the path
-    if (selectedLocation) {
-      allPoints.unshift({ lat: selectedLocation.lat, lng: selectedLocation.lng, type: 'normal' });
-    }
-
-    for (let i = 1; i < allPoints.length; i++) {
-      const prev = allPoints[i-1];
-      const curr = allPoints[i];
-      trailFeatures.push({
-        type: 'Feature',
-        properties: { type: curr.type },
-        geometry: {
-          type: 'LineString',
-          coordinates: [ [prev.lng, prev.lat], [curr.lng, curr.lat] ]
-        }
-      });
-    }
+    trailStrokes.forEach(stroke => {
+      if (stroke.path && stroke.path.length > 1) {
+        trailFeatures.push({
+          type: 'Feature',
+          properties: { type: stroke.type },
+          geometry: {
+            type: 'LineString',
+            coordinates: stroke.path.map(p => [p.lng, p.lat])
+          }
+        });
+      }
+    });
 
     const geojsonData = {
       type: 'FeatureCollection',
       features: trailFeatures
     };
 
-    // 5. Safely update the geojson data
+    // 4. Safely update the geojson data
     const source = map.current.getSource('trail');
     if (source) {
       source.setData(geojsonData);
     }
-  }, [trailPoints, trailPOIs, selectedLocation]);
+  }, [trailStrokes, trailPOIs, selectedLocation]);
 
   return (
     <div className="map-wrapper">

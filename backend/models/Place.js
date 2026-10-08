@@ -31,11 +31,13 @@ const placeSchema = new mongoose.Schema({
   createdBy: { type: String, required: true }, // Legacy string field
   authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // New reference field
   
-  // Array of trail points. type can be 'normal', 'easy', 'moderate', 'hard', 'danger'
-  trail: [{
-    lat: { type: Number, required: true },
-    lng: { type: Number, required: true },
-    type: { type: String, default: 'normal' }
+  // Freehand drawn strokes. Each stroke has a difficulty color and a continuous array of coordinates
+  trailStrokes: [{
+    type: { type: String, default: 'normal' }, // normal, moderate, danger
+    path: [{
+      lat: { type: Number, required: true },
+      lng: { type: Number, required: true }
+    }]
   }],
   
   // Array of points of interest on the trail
