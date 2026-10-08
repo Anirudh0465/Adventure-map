@@ -89,13 +89,7 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
           source: 'trail',
           layout: { 'line-join': 'round', 'line-cap': 'round' },
           paint: { 
-            'line-color': [
-              'match',
-              ['get', 'type'],
-              'moderate', '#EAB308', // yellow
-              'danger', '#EF4444', // red
-              '#FFFFFF' // normal
-            ],
+            'line-color': ['get', 'color'],
             'line-width': 6
           }
         });
@@ -113,7 +107,7 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
           paint: { 
             'line-color': '#FFFFFF', 
             'line-width': 6,
-            'line-dasharray': [1, 2] // Dashed so user knows it's being drawn
+            'line-dasharray': [2, 2] // Standard dashed line
           }
         });
       }
@@ -304,9 +298,14 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
     
     trailStrokes.forEach(stroke => {
       if (stroke.path && stroke.path.length > 1) {
+        
+        let strokeColor = '#FFFFFF';
+        if (stroke.type === 'moderate') strokeColor = '#EAB308';
+        if (stroke.type === 'danger') strokeColor = '#EF4444';
+        
         trailFeatures.push({
           type: 'Feature',
-          properties: { type: stroke.type },
+          properties: { type: stroke.type, color: strokeColor },
           geometry: {
             type: 'LineString',
             coordinates: stroke.path.map(p => [p.lng, p.lat])
