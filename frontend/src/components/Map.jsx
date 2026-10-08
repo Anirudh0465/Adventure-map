@@ -9,6 +9,11 @@ export default function Map({ places, onMapClick, onMarkerClick }) {
   const [lat] = useState(47.6062);
   const [zoom] = useState(11);
   const markersRef = useRef({}); // keep track of markers
+  const onMapClickRef = useRef(onMapClick);
+
+  useEffect(() => {
+    onMapClickRef.current = onMapClick;
+  }, [onMapClick]);
 
   useEffect(() => {
     if (map.current) return; // initialize map only once
@@ -23,9 +28,11 @@ export default function Map({ places, onMapClick, onMarkerClick }) {
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
 
     map.current.on('click', (e) => {
-      onMapClick(e.lngLat);
+      if (onMapClickRef.current) {
+        onMapClickRef.current(e.lngLat);
+      }
     });
-  }, [lng, lat, zoom, onMapClick]);
+  }, [lng, lat, zoom]);
 
   useEffect(() => {
     if (!map.current) return;
