@@ -63,7 +63,13 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
 
     map.current.on('dblclick', (e) => {
       if (onMapClickRef.current) {
-        onMapClickRef.current(e.lngLat);
+        onMapClickRef.current(e.lngLat, true);
+      }
+    });
+
+    map.current.on('click', (e) => {
+      if (onMapClickRef.current) {
+        onMapClickRef.current(e.lngLat, false);
       }
     });
   }, [lng, lat, zoom]);
@@ -148,9 +154,12 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
       map.current.addSource('trail', {
         type: 'geojson',
         data: {
-          type: 'Feature',
-          properties: {},
-          geometry: { type: 'LineString', coordinates }
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            properties: {},
+            geometry: { type: 'LineString', coordinates }
+          }]
         }
       });
 
@@ -159,16 +168,15 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
         type: 'line',
         source: 'trail',
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#FFFFFF', 'line-width': 4, 'line-dasharray': [2, 2] }
+        paint: { 'line-color': '#000000', 'line-width': 4 } // Solid black line for visibility
       });
     }
 
     // 4. Draw colored markers for each point based on difficulty type
     const typeColors = {
       normal: '#FFFFFF',
-      easy: '#10B981', // green
-      moderate: '#3B82F6', // blue
-      hard: '#F97316', // orange
+      moderate: '#EAB308', // yellow
+      scenic: '#3B82F6', // blue
       danger: '#EF4444' // red
     };
 

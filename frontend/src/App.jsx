@@ -29,20 +29,24 @@ function App() {
       .catch(err => console.error("Error fetching places:", err));
   }, []);
 
-  const handleMapClick = (lngLat) => {
+  const handleMapClick = (lngLat, isDoubleClick) => {
     if (!user) {
       alert("Please sign in to add a place!");
       return;
     }
     
     if (isDrawingTrail) {
-      setTrailPoints([...trailPoints, { lat: lngLat.lat, lng: lngLat.lng, type: currentTrailType }]);
+      if (!isDoubleClick) {
+        setTrailPoints([...trailPoints, { lat: lngLat.lat, lng: lngLat.lng, type: currentTrailType }]);
+      }
       return;
     }
 
-    setSelectedLocation(lngLat);
-    setIsAddingPlace(true);
-    setSelectedPlace(null);
+    if (isDoubleClick) {
+      setSelectedLocation(lngLat);
+      setIsAddingPlace(true);
+      setSelectedPlace(null);
+    }
   };
 
   const handleMarkerClick = (place) => {
@@ -204,7 +208,7 @@ function App() {
             onMarkerClick={handleMarkerClick} 
             mapStyleType={mapTheme} 
             trailPoints={isDrawingTrail ? trailPoints : (selectedPlace?.trail || [])}
-            selectedLocation={selectedLocation}
+            selectedLocation={isAddingPlace ? selectedLocation : (selectedPlace?.coordinates || null)}
           />
 
           {/* Profile Panel */}
@@ -291,10 +295,9 @@ function App() {
                         style={{ marginBottom: '10px', width: '100%' }}
                       >
                         <option value="normal">Normal Path (White)</option>
-                        <option value="easy">Easy Zone (Green)</option>
-                        <option value="moderate">Moderate Zone (Blue)</option>
-                        <option value="hard">Hard Zone (Orange)</option>
-                        <option value="danger">Danger Zone (Red)</option>
+                        <option value="moderate">Moderate Zone (Yellow)</option>
+                        <option value="scenic">Scenic/Rest Zone (Blue)</option>
+                        <option value="danger">Hard/Danger Zone (Red)</option>
                       </select>
                       <button type="button" className="btn-secondary" onClick={() => { setIsDrawingTrail(false); setTrailPoints([]); }} style={{ marginRight: '10px', fontSize: '0.8rem' }}>Clear</button>
                       <button type="button" className="btn-primary" onClick={() => setIsDrawingTrail(false)} style={{ fontSize: '0.8rem', padding: '6px 12px' }}>Done Drawing</button>
