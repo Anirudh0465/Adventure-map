@@ -37,9 +37,9 @@ const satelliteStyle = {
 export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 'street', trailPoints = [], selectedLocation = null }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
-  const [lng] = useState(-122.3321); // Seattle Default
-  const [lat] = useState(47.6062);
-  const [zoom] = useState(11);
+  const [lng] = useState(0); // Center of globe
+  const [lat] = useState(20);
+  const [zoom] = useState(2); // Globe view
   const markersRef = useRef({}); // keep track of markers
   const trailMarkersRef = useRef([]); // track trail dots
   const onMapClickRef = useRef(onMapClick);
@@ -72,6 +72,26 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
         onMapClickRef.current(e.lngLat, false);
       }
     });
+
+    // Try to get user's location and fly to it
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          if (map.current) {
+            map.current.flyTo({
+              center: [position.coords.longitude, position.coords.latitude],
+              zoom: 12,
+              essential: true // this animation is considered essential with respect to prefers-reduced-motion
+            });
+          }
+        },
+        (error) => {
+          console.warn("Geolocation denied or failed:", error);
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    }
+
   }, [lng, lat, zoom]);
 
   useEffect(() => {
