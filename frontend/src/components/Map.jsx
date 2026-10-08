@@ -270,8 +270,6 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
     if (!map.current) return;
 
     // 1. Remove old markers
-    trailMarkersRef.current.forEach(m => m.remove());
-    trailMarkersRef.current = [];
     poiMarkersRef.current.forEach(m => m.remove());
     poiMarkersRef.current = [];
 
