@@ -132,63 +132,70 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
   useEffect(() => {
     if (!map.current) return;
 
-    // 1. Remove old trail markers
-    trailMarkersRef.current.forEach(m => m.remove());
-    trailMarkersRef.current = [];
+    const drawTrail = () => {
+      // 1. Remove old trail markers
+      trailMarkersRef.current.forEach(m => m.remove());
+      trailMarkersRef.current = [];
 
-    // 2. Prepare the LineString data
-    let coordinates = trailPoints.map(pt => [pt.lng, pt.lat]);
-    if (selectedLocation) {
-      coordinates.push([selectedLocation.lng, selectedLocation.lat]);
-    }
+      // 2. Prepare the LineString data
+      let coordinates = trailPoints.map(pt => [pt.lng, pt.lat]);
+      if (selectedLocation) {
+        coordinates.push([selectedLocation.lng, selectedLocation.lat]);
+      }
 
-    const geojsonData = {
-      type: 'FeatureCollection',
-      features: coordinates.length >= 2 ? [{
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'LineString', coordinates }
-      }] : []
-    };
+      const geojsonData = {
+        type: 'FeatureCollection',
+        features: coordinates.length >= 2 ? [{
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'LineString', coordinates }
+        }] : []
+      };
 
-    // 3. Draw or update the line
-    if (map.current.getSource('trail')) {
-      map.current.getSource('trail').setData(geojsonData);
-    } else {
-      map.current.addSource('trail', { type: 'geojson', data: geojsonData });
-      map.current.addLayer({
-        id: 'trail-line',
-        type: 'line',
-        source: 'trail',
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#000000', 'line-width': 4 }
+      // 3. Draw or update the line
+      if (map.current.getSource('trail')) {
+        map.current.getSource('trail').setData(geojsonData);
+      } else {
+        map.current.addSource('trail', { type: 'geojson', data: geojsonData });
+        map.current.addLayer({
+          id: 'trail-line',
+          type: 'line',
+          source: 'trail',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': '#000000', 'line-width': 4 }
+        });
+      }
+
+      // 4. Draw colored markers for each point based on difficulty type
+      const typeColors = {
+        normal: '#FFFFFF',
+        moderate: '#EAB308', // yellow
+        scenic: '#3B82F6', // blue
+        danger: '#EF4444' // red
+      };
+
+      trailPoints.forEach(pt => {
+        const el = document.createElement('div');
+        el.style.width = '14px';
+        el.style.height = '14px';
+        el.style.borderRadius = '50%';
+        el.style.backgroundColor = typeColors[pt.type] || '#FFFFFF';
+        el.style.border = '2px solid #000';
+        el.style.boxShadow = '0 0 5px rgba(255,255,255,0.5)';
+
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat([pt.lng, pt.lat])
+          .addTo(map.current);
+        
+        trailMarkersRef.current.push(marker);
       });
-    }
-
-    // 4. Draw colored markers for each point based on difficulty type
-    const typeColors = {
-      normal: '#FFFFFF',
-      moderate: '#EAB308', // yellow
-      scenic: '#3B82F6', // blue
-      danger: '#EF4444' // red
     };
 
-    trailPoints.forEach(pt => {
-      const el = document.createElement('div');
-      el.style.width = '14px';
-      el.style.height = '14px';
-      el.style.borderRadius = '50%';
-      el.style.backgroundColor = typeColors[pt.type] || '#FFFFFF';
-      el.style.border = '2px solid #000';
-      el.style.boxShadow = '0 0 5px rgba(255,255,255,0.5)';
-
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([pt.lng, pt.lat])
-        .addTo(map.current);
-      
-      trailMarkersRef.current.push(marker);
-    });
-
+    if (map.current.isStyleLoaded()) {
+      drawTrail();
+    } else {
+      map.current.once('style.load', drawTrail);
+    }
   }, [trailPoints, selectedLocation]);
 
   return (
