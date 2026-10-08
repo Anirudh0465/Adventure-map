@@ -45,6 +45,7 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
   const onMapClickRef = useRef(onMapClick);
   const isDrawingRef = useRef(false);
   const currentPathRef = useRef([]);
+  const latestGeoJSONRef = useRef({ type: 'FeatureCollection', features: [] });
 
   useEffect(() => {
     onMapClickRef.current = onMapClick;
@@ -80,7 +81,7 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
       if (map.current && !map.current.getSource('trail')) {
         map.current.addSource('trail', {
           type: 'geojson',
-          data: { type: 'FeatureCollection', features: [] }
+          data: latestGeoJSONRef.current
         });
         map.current.addLayer({
           id: 'trail-line',
@@ -319,8 +320,10 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
       features: trailFeatures
     };
 
+    latestGeoJSONRef.current = geojsonData;
+
     // 4. Safely update the geojson data
-    const source = map.current.getSource('trail');
+    const source = map.current?.getSource('trail');
     if (source) {
       source.setData(geojsonData);
     }
