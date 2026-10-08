@@ -74,6 +74,37 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
       }
     });
 
+    // Initialize Trail Layer permanently when style loads
+    const initTrailLayer = () => {
+      if (map.current && !map.current.getSource('trail')) {
+        map.current.addSource('trail', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+        map.current.addLayer({
+          id: 'trail-line',
+          type: 'line',
+          source: 'trail',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 
+            'line-color': [
+              'match',
+              ['get', 'type'],
+              'moderate', '#EAB308', // yellow
+              'danger', '#EF4444', // red
+              '#FFFFFF' // normal
+            ],
+            'line-width': 6
+          }
+        });
+      }
+    };
+
+    map.current.on('style.load', initTrailLayer);
+    if (map.current.isStyleLoaded()) {
+      initTrailLayer();
+    }
+
     // Try to get user's location and fly to it
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -233,31 +264,10 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
       features: trailFeatures
     };
 
-    // 5. Draw or update the lines with data-driven colors
-    try {
-      if (map.current.getSource('trail')) {
-        map.current.getSource('trail').setData(geojsonData);
-      } else if (map.current.getStyle()) {
-        map.current.addSource('trail', { type: 'geojson', data: geojsonData });
-        map.current.addLayer({
-          id: 'trail-line',
-          type: 'line',
-          source: 'trail',
-          layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: { 
-            'line-color': [
-              'match',
-              ['get', 'type'],
-              'moderate', '#EAB308',
-              'danger', '#EF4444',
-              /* default */ '#FFFFFF'
-            ],
-            'line-width': 5 
-          }
-        });
-      }
-    } catch (err) {
-      console.warn('MapLibre failed to draw trail line:', err);
+    // 5. Safely update the geojson data
+    const source = map.current.getSource('trail');
+    if (source) {
+      source.setData(geojsonData);
     }
   }, [trailPoints, trailPOIs, selectedLocation]);
 
