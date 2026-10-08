@@ -197,3 +197,32 @@ h1, h2, h3, h4 {
   border-radius: 50%;
   border: 2px solid var(--accent-primary);
 }
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .header {
+    padding: 15px;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+  }
+  
+  .logo {
+    font-size: 1.3rem;
+  }
+  
+  .auth-container {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .floating-ui {
+    top: auto;
+    bottom: 20px;
+    left: 15px;
+    right: 15px;
+    width: auto;
+    max-height: 50vh;
+    padding: 15px;
+  }
+}
