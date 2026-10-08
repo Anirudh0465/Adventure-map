@@ -28,7 +28,16 @@ const placeSchema = new mongoose.Schema({
   stillAccessibleVotes: { type: Number, default: 0 },
   reportedCount: { type: Number, default: 0 },
   
-  createdBy: { type: String, required: true }, // User ID or Name
+  createdBy: { type: String, required: true }, // Legacy string field
+  authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // New reference field
+  
+  // Array of trail points. type can be 'normal', 'easy', 'moderate', 'hard', 'danger'
+  trail: [{
+    lat: { type: Number, required: true },
+    lng: { type: Number, required: true },
+    type: { type: String, default: 'normal' }
+  }],
+  
   createdAt: { type: Date, default: Date.now }
 });
 

@@ -16,6 +16,10 @@ function App() {
   const [photo, setPhoto] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [mapTheme, setMapTheme] = useState('street'); // 'street' or 'satellite'
+  const [showProfile, setShowProfile] = useState(false);
+  const [isDrawingTrail, setIsDrawingTrail] = useState(false);
+  const [trailPoints, setTrailPoints] = useState([]);
+  const [currentTrailType, setCurrentTrailType] = useState('normal'); // normal, easy, moderate, hard, danger
 
   // Fetch places from backend
   useEffect(() => {
@@ -30,6 +34,12 @@ function App() {
       alert("Please sign in to add a place!");
       return;
     }
+    
+    if (isDrawingTrail) {
+      setTrailPoints([...trailPoints, { lat: lngLat.lat, lng: lngLat.lng, type: currentTrailType }]);
+      return;
+    }
+
     setSelectedLocation(lngLat);
     setIsAddingPlace(true);
     setSelectedPlace(null);
@@ -40,18 +50,26 @@ function App() {
     setIsAddingPlace(false);
   };
 
-  const handleLoginSuccess = (credentialResponse) => {
-    // For MVP, we'll just decode the JWT locally to get the user info
-    // In production, send credentialResponse.credential to backend to verify
+  const handleLoginSuccess = async (credentialResponse) => {
     try {
       const payload = JSON.parse(atob(credentialResponse.credential.split('.')[1]));
-      setUser({
-        name: payload.name,
-        picture: payload.picture,
-        email: payload.email
+      
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: payload.email,
+          name: payload.name,
+          picture: payload.picture
+        })
       });
+      
+      if (res.ok) {
+        const dbUser = await res.json();
+        setUser(dbUser);
+      }
     } catch (e) {
-      console.error("Error decoding token");
+      console.error("Error logging in", e);
     }
   };
 
@@ -65,7 +83,11 @@ function App() {
     formData.append('description', description);
     formData.append('lat', selectedLocation.lat);
     formData.append('lng', selectedLocation.lng);
-    formData.append('createdBy', user.name);
+    formData.append('createdBy', user.username);
+    formData.append('authorId', user._id);
+    if (trailPoints.length > 0) {
+      formData.append('trail', JSON.stringify(trailPoints));
+    }
     if (photo) {
       formData.append('photo', photo);
     }
@@ -85,9 +107,53 @@ function App() {
       setDescription('');
       setPhoto(null);
       setSelectedLocation(null);
+      setIsDrawingTrail(false);
+      setTrailPoints([]);
     } catch (err) {
       console.error("Error creating place:", err);
       alert("Failed to drop pin. Is the backend running?");
+    }
+  };
+
+  const handleDeletePlace = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this pin?")) return;
+    try {
+      const res = await fetch(`/api/places/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email })
+      });
+      if (res.ok) {
+        setPlaces(places.filter(p => p._id !== id));
+        setSelectedPlace(null);
+      } else {
+        const err = await res.json();
+        alert(err.error);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    const newUsername = e.target.username.value;
+    try {
+      const res = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, newUsername })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setUser(updated);
+        alert("Profile updated!");
+      } else {
+        const err = await res.json();
+        alert(err.error);
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -109,10 +175,9 @@ function App() {
               {mapTheme === 'street' ? '🛰️ Satellite Map' : '🗺️ Street Map'}
             </button>
             {user ? (
-              <div className="user-profile">
+              <div className="user-profile" onClick={() => setShowProfile(!showProfile)} style={{ cursor: 'pointer' }}>
                 {user.picture && <img src={user.picture} alt="Profile" />}
-                <span>{user.name}</span>
-                <button className="btn-secondary" onClick={() => setUser(null)} style={{ padding: '6px 12px', fontSize: '0.8rem' }}>Sign Out</button>
+                <span>{user.username || user.name}</span>
               </div>
             ) : (
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -133,7 +198,45 @@ function App() {
         <main className="main-content">
           
           {/* Map */}
-          <Map places={places} onMapClick={handleMapClick} onMarkerClick={handleMarkerClick} mapStyleType={mapTheme} />
+          <Map 
+            places={places} 
+            onMapClick={handleMapClick} 
+            onMarkerClick={handleMarkerClick} 
+            mapStyleType={mapTheme} 
+            trailPoints={isDrawingTrail ? trailPoints : (selectedPlace?.trail || [])}
+          />
+
+          {/* Profile Panel */}
+          {showProfile && user && (
+            <div className="floating-ui glass-panel" style={{ left: 'auto', right: '20px', width: '300px' }}>
+              <button className="btn-secondary" style={{ float: 'right', padding: '4px 8px' }} onClick={() => setShowProfile(false)}>✕</button>
+              <h3 style={{ marginBottom: '15px' }}>Your Profile</h3>
+              
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <img src={user.picture} style={{ width: '80px', borderRadius: '50%', marginBottom: '10px' }} />
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{user.email}</p>
+              </div>
+
+              <form onSubmit={handleUpdateProfile} style={{ marginBottom: '20px' }}>
+                <div className="form-group">
+                  <label>Username</label>
+                  <input type="text" name="username" defaultValue={user.username} className="form-control" />
+                </div>
+                <button type="submit" className="btn-primary" style={{ width: '100%' }}>Save Profile</button>
+              </form>
+
+              <h4>Your Pins</h4>
+              <ul style={{ listStyle: 'none', padding: 0, marginTop: '10px', maxHeight: '150px', overflowY: 'auto' }}>
+                {places.filter(p => p.authorId === user._id || p.createdBy === user.username).map(p => (
+                  <li key={p._id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }} onClick={() => { setSelectedPlace(p); setShowProfile(false); }}>
+                    {p.title}
+                  </li>
+                ))}
+              </ul>
+
+              <button className="btn-secondary" onClick={() => { setUser(null); setShowProfile(false); }} style={{ width: '100%', marginTop: '20px' }}>Sign Out</button>
+            </div>
+          )}
           
           {/* Floating UI Panel (Add Place Form) */}
           {isAddingPlace && (
@@ -169,6 +272,33 @@ function App() {
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                   ></textarea>
+                </div>
+                
+                <div className="form-group">
+                  <label>Trail / Path</label>
+                  {!isDrawingTrail ? (
+                    <button type="button" className="btn-secondary" onClick={() => setIsDrawingTrail(true)}>
+                      Draw Trail on Map ({trailPoints.length} pts)
+                    </button>
+                  ) : (
+                    <div style={{ padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                      <p style={{ fontSize: '0.8rem', marginBottom: '10px', color: 'var(--accent-primary)' }}>Click map to draw. {trailPoints.length} points added.</p>
+                      <select 
+                        className="form-control" 
+                        value={currentTrailType} 
+                        onChange={(e) => setCurrentTrailType(e.target.value)}
+                        style={{ marginBottom: '10px', width: '100%' }}
+                      >
+                        <option value="normal">Normal Path (White)</option>
+                        <option value="easy">Easy Zone (Green)</option>
+                        <option value="moderate">Moderate Zone (Blue)</option>
+                        <option value="hard">Hard Zone (Orange)</option>
+                        <option value="danger">Danger Zone (Red)</option>
+                      </select>
+                      <button type="button" className="btn-secondary" onClick={() => { setIsDrawingTrail(false); setTrailPoints([]); }} style={{ marginRight: '10px', fontSize: '0.8rem' }}>Clear</button>
+                      <button type="button" className="btn-primary" onClick={() => setIsDrawingTrail(false)} style={{ fontSize: '0.8rem', padding: '6px 12px' }}>Done Drawing</button>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Photo upload */}
@@ -233,10 +363,20 @@ function App() {
                 </div>
               )}
               
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px', display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>By {selectedPlace.createdBy || 'Unknown'}</span>
                 {selectedPlace.isAiSuggested && <span style={{ color: '#8B5CF6', fontWeight: 'bold' }}>✨ AI Tagged</span>}
               </div>
+
+              {user && (selectedPlace.authorId === user._id || selectedPlace.createdBy === user.username) && (
+                <button 
+                  className="btn-secondary" 
+                  style={{ width: '100%', marginTop: '15px', color: '#EF4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                  onClick={() => handleDeletePlace(selectedPlace._id)}
+                >
+                  Delete Pin
+                </button>
+              )}
             </div>
           )}
           

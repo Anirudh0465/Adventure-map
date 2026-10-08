@@ -34,13 +34,14 @@ const satelliteStyle = {
   layers: [{ id: 'satellite-layer', type: 'raster', source: 'satellite', minzoom: 0, maxzoom: 19 }]
 };
 
-export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 'street' }) {
+export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 'street', trailPoints = [] }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const [lng] = useState(-122.3321); // Seattle Default
   const [lat] = useState(47.6062);
   const [zoom] = useState(11);
   const markersRef = useRef({}); // keep track of markers
+  const trailMarkersRef = useRef([]); // track trail dots
   const onMapClickRef = useRef(onMapClick);
 
   useEffect(() => {
@@ -58,8 +59,9 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
     });
 
     map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.current.doubleClickZoom.disable();
 
-    map.current.on('click', (e) => {
+    map.current.on('dblclick', (e) => {
       if (onMapClickRef.current) {
         onMapClickRef.current(e.lngLat);
       }
@@ -102,6 +104,65 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
       markersRef.current[place._id] = marker;
     });
   }, [places, onMarkerClick]);
+
+  useEffect(() => {
+    if (!map.current) return;
+
+    // 1. Remove old trail markers
+    trailMarkersRef.current.forEach(m => m.remove());
+    trailMarkersRef.current = [];
+
+    // 2. Remove old GeoJSON line if exists
+    if (map.current.getLayer('trail-line')) map.current.removeLayer('trail-line');
+    if (map.current.getSource('trail')) map.current.removeSource('trail');
+
+    if (trailPoints.length === 0) return;
+
+    // 3. Draw the line connecting points
+    const coordinates = trailPoints.map(pt => [pt.lng, pt.lat]);
+    map.current.addSource('trail', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'LineString', coordinates }
+      }
+    });
+
+    map.current.addLayer({
+      id: 'trail-line',
+      type: 'line',
+      source: 'trail',
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': '#FFFFFF', 'line-width': 4, 'line-dasharray': [2, 2] }
+    });
+
+    // 4. Draw colored markers for each point based on difficulty type
+    const typeColors = {
+      normal: '#FFFFFF',
+      easy: '#10B981', // green
+      moderate: '#3B82F6', // blue
+      hard: '#F97316', // orange
+      danger: '#EF4444' // red
+    };
+
+    trailPoints.forEach(pt => {
+      const el = document.createElement('div');
+      el.style.width = '14px';
+      el.style.height = '14px';
+      el.style.borderRadius = '50%';
+      el.style.backgroundColor = typeColors[pt.type] || '#FFFFFF';
+      el.style.border = '2px solid #000';
+      el.style.boxShadow = '0 0 5px rgba(255,255,255,0.5)';
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([pt.lng, pt.lat])
+        .addTo(map.current);
+      
+      trailMarkersRef.current.push(marker);
+    });
+
+  }, [trailPoints]);
 
   return (
     <div className="map-wrapper">

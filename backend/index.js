@@ -8,6 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { HfInference } from '@huggingface/inference';
 import { Place } from './models/Place.js';
+import { User } from './models/User.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,10 +36,64 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Backend is running' });
 });
 
+// Auth Route
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, name, picture } = req.body;
+    if (!email) return res.status(400).json({ error: "Email required" });
+    
+    let user = await User.findOne({ email });
+    if (!user) {
+      // Generate a default username from email
+      let baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+      let username = baseUsername;
+      let counter = 1;
+      while (await User.findOne({ username })) {
+        username = `${baseUsername}${counter}`;
+        counter++;
+      }
+      
+      user = new User({ email, name, picture, username });
+      await user.save();
+    }
+    
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update Profile
+app.put('/api/users/profile', async (req, res) => {
+  try {
+    const { email, newUsername } = req.body;
+    if (!email || !newUsername) return res.status(400).json({ error: "Missing fields" });
+    
+    const existing = await User.findOne({ username: newUsername });
+    if (existing && existing.email !== email) {
+      return res.status(400).json({ error: "Username already taken" });
+    }
+    
+    const user = await User.findOneAndUpdate(
+      { email },
+      { username: newUsername },
+      { new: true }
+    );
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Route for creating a place
 app.post('/api/places', upload.single('photo'), async (req, res) => {
   try {
-    const { title, description, lat, lng, createdBy } = req.body;
+    const { title, description, lat, lng, createdBy, authorId, trail } = req.body;
+    
+    let parsedTrail = [];
+    if (trail) {
+      try { parsedTrail = JSON.parse(trail); } catch(e) {}
+    }
     let aiData = {
       tags: [],
       vibe: '',
@@ -90,6 +145,8 @@ app.post('/api/places', upload.single('photo'), async (req, res) => {
       description,
       coordinates: { lat: Number(lat), lng: Number(lng) },
       createdBy: createdBy || 'Anonymous',
+      authorId: authorId || null,
+      trail: parsedTrail,
       photoUrl: req.file ? `/uploads/${req.file.filename}` : null,
       ...aiData
     });
@@ -106,6 +163,30 @@ app.get('/api/places', async (req, res) => {
   try {
     const places = await Place.find().sort({ createdAt: -1 });
     res.json(places);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Route for deleting a place
+app.delete('/api/places/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email } = req.body; // In MVP, just verify with email
+    
+    const place = await Place.findById(id);
+    if (!place) return res.status(404).json({ error: "Place not found" });
+    
+    const user = await User.findOne({ email });
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+    
+    // Check if the user owns this place
+    if (place.authorId && place.authorId.toString() !== user._id.toString() && place.createdBy !== user.username) {
+      return res.status(403).json({ error: "Forbidden: You didn't create this pin" });
+    }
+    
+    await Place.findByIdAndDelete(id);
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
