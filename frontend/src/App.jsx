@@ -15,7 +15,7 @@ function App() {
   const [description, setDescription] = useState('');
   const [photo, setPhoto] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
-  const [mapTheme, setMapTheme] = useState('colorful');
+  const [mapTheme, setMapTheme] = useState('street'); // 'street' or 'satellite'
 
   // Fetch places from backend
   useEffect(() => {
@@ -102,11 +102,11 @@ function App() {
           <div className="auth-container">
             <button 
               className="btn-secondary" 
-              onClick={() => setMapTheme(mapTheme === 'colorful' ? 'bw' : 'colorful')}
+              onClick={() => setMapTheme(mapTheme === 'street' ? 'satellite' : 'street')}
               style={{ padding: '6px 12px', fontSize: '0.8rem', borderRadius: '50px' }}
-              title="Toggle Map Color"
+              title="Toggle Map Style"
             >
-              {mapTheme === 'colorful' ? '🗺️ B&W Map' : '🗺️ Colorful Map'}
+              {mapTheme === 'street' ? '🛰️ Satellite Map' : '🗺️ Street Map'}
             </button>
             {user ? (
               <div className="user-profile">
@@ -140,7 +140,7 @@ function App() {
         <main className="main-content">
           
           {/* Map */}
-          <Map places={places} onMapClick={handleMapClick} onMarkerClick={handleMarkerClick} />
+          <Map places={places} onMapClick={handleMapClick} onMarkerClick={handleMarkerClick} mapStyleType={mapTheme} />
           
           {/* Floating UI Panel (Add Place Form) */}
           {isAddingPlace && (

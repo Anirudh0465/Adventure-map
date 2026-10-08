@@ -2,7 +2,39 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-export default function Map({ places, onMapClick, onMarkerClick }) {
+const streetStyle = {
+  version: 8,
+  sources: {
+    'osm': {
+      type: 'raster',
+      tiles: [
+        'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
+      ],
+      tileSize: 256,
+      attribution: '&copy; OpenStreetMap Contributors'
+    }
+  },
+  layers: [{ id: 'osm-layer', type: 'raster', source: 'osm', minzoom: 0, maxzoom: 19 }]
+};
+
+const satelliteStyle = {
+  version: 8,
+  sources: {
+    'satellite': {
+      type: 'raster',
+      tiles: [
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+      ],
+      tileSize: 256,
+      attribution: '&copy; Esri & Maxar'
+    }
+  },
+  layers: [{ id: 'satellite-layer', type: 'raster', source: 'satellite', minzoom: 0, maxzoom: 19 }]
+};
+
+export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 'street' }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const [lng] = useState(-122.3321); // Seattle Default
@@ -20,30 +52,7 @@ export default function Map({ places, onMapClick, onMarkerClick }) {
     
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: {
-        version: 8,
-        sources: {
-          'osm': {
-            type: 'raster',
-            tiles: [
-              'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
-            ],
-            tileSize: 256,
-            attribution: '&copy; OpenStreetMap Contributors'
-          }
-        },
-        layers: [
-          {
-            id: 'osm-layer',
-            type: 'raster',
-            source: 'osm',
-            minzoom: 0,
-            maxzoom: 19
-          }
-        ]
-      },
+      style: mapStyleType === 'satellite' ? satelliteStyle : streetStyle,
       center: [lng, lat],
       zoom: zoom,
     });
@@ -56,6 +65,11 @@ export default function Map({ places, onMapClick, onMarkerClick }) {
       }
     });
   }, [lng, lat, zoom]);
+
+  useEffect(() => {
+    if (!map.current) return;
+    map.current.setStyle(mapStyleType === 'satellite' ? satelliteStyle : streetStyle);
+  }, [mapStyleType]);
 
   useEffect(() => {
     if (!map.current) return;
