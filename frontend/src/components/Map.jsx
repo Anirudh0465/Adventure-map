@@ -259,9 +259,9 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
           if (!stroke.path || stroke.path.length < 2) return null;
           const points = stroke.path.map(p => projectToSVG(p.lng, p.lat));
           const d = `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}`;
-          let strokeColor = '#FFFFFF';
-          if (stroke.type === 'moderate') strokeColor = '#EAB308';
-          if (stroke.type === 'danger') strokeColor = '#EF4444';
+          let strokeColor = '#3B82F6'; // Default normal path (Blue)
+          if (stroke.type === 'moderate') strokeColor = '#EAB308'; // Yellow
+          if (stroke.type === 'danger') strokeColor = '#EF4444'; // Red
           return <path key={`stroke-${i}`} d={d} fill="none" stroke={strokeColor} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />;
         })}
         
@@ -269,7 +269,7 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
         {activePath.length > 1 && (
           <path 
             d={`M ${activePath.map(p => projectToSVG(p.lng, p.lat)).map(p => `${p.x},${p.y}`).join(' L ')}`} 
-            fill="none" stroke="#FFFFFF" strokeWidth="6" strokeDasharray="6 6" strokeLinecap="round" strokeLinejoin="round" 
+            fill="none" stroke="#3B82F6" strokeWidth="6" strokeDasharray="6 6" strokeLinecap="round" strokeLinejoin="round" 
           />
         )}
       </svg>

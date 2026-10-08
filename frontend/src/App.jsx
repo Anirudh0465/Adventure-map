@@ -322,7 +322,7 @@ function App() {
                           onChange={(e) => setCurrentTrailType(e.target.value)}
                           style={{ marginBottom: '10px', width: '100%' }}
                         >
-                          <option value="normal">Normal Path (White)</option>
+                          <option value="normal">Normal Path (Blue)</option>
                           <option value="moderate">Moderate Zone (Yellow)</option>
                           <option value="danger">Hard/Danger Zone (Red)</option>
                         </select>
