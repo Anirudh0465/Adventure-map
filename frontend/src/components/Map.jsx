@@ -68,11 +68,11 @@ export default function Map({ places, onMapClick, onMarkerClick }) {
     places.forEach((place) => {
       const el = document.createElement('div');
       el.className = 'marker';
-      el.style.backgroundColor = '#10B981'; // Tailwind Emerald 500
+      el.style.backgroundColor = '#000000'; // Black pin
       el.style.width = '24px';
       el.style.height = '24px';
       el.style.borderRadius = '50%';
-      el.style.border = '3px solid white';
+      el.style.border = '3px solid #FFFFFF'; // White border
       el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
       el.style.cursor = 'pointer';
 

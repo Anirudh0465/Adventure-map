@@ -217,13 +217,13 @@ function App() {
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '15px' }}>
                   {selectedPlace.tags.map((tag, idx) => (
                     <span key={idx} style={{ 
-                      backgroundColor: 'rgba(16, 185, 129, 0.15)', 
-                      color: 'var(--accent-primary)', 
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)', 
+                      color: '#FFFFFF', 
                       padding: '4px 12px', 
                       borderRadius: '50px', 
                       fontSize: '0.8rem',
                       fontWeight: '500',
-                      border: '1px solid rgba(16, 185, 129, 0.3)'
+                      border: '1px solid rgba(255, 255, 255, 0.3)'
                     }}>
                       #{tag}
                     </span>

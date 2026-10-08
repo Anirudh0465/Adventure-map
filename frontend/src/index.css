@@ -1,20 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;600&display=swap');
 
 :root {
-  --bg-primary: #0F172A; /* Deep Slate */
-  --bg-secondary: #1E293B;
-  --bg-glass: rgba(30, 41, 59, 0.7);
-  --text-primary: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --accent-primary: #10B981; /* Emerald */
-  --accent-glow: rgba(16, 185, 129, 0.3);
-  --accent-hover: #34D399;
+  --bg-primary: #000000;
+  --bg-secondary: #111111;
+  --bg-glass: rgba(10, 10, 10, 0.85);
+  --text-primary: #FFFFFF;
+  --text-secondary: #AAAAAA;
+  --accent-primary: #FFFFFF;
+  --accent-glow: rgba(255, 255, 255, 0.15);
+  --accent-hover: #CCCCCC;
   
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 20px;
   
-  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -47,8 +47,8 @@ h1, h2, h3, h4 {
 
 /* Buttons */
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
-  color: #000;
+  background: #FFFFFF;
+  color: #000000;
   font-weight: 600;
   padding: 12px 24px;
   border-radius: var(--radius-md);
@@ -60,7 +60,8 @@ h1, h2, h3, h4 {
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+  background: #E5E5E5;
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.25);
 }
 
 .btn-secondary {
@@ -96,9 +97,7 @@ h1, h2, h3, h4 {
   font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.5px;
-  background: linear-gradient(to right, #10B981, #34D399);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #FFFFFF;
 }
 
 .main-content {
@@ -115,6 +114,7 @@ h1, h2, h3, h4 {
   height: 100%;
   min-height: calc(100vh - 80px); /* fallback */
   flex: 1;
+  filter: grayscale(100%) contrast(1.1);
 }
 
 .map-container {
