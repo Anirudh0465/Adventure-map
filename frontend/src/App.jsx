@@ -64,10 +64,44 @@ function App() {
     setIsAddingPlace(false);
   };
 
-  const handleDrawFreehand = (path) => {
-    if (path.length > 1) {
-      setTrailStrokes([...trailStrokes, { type: currentTrailType, path }]);
+  const handleDrawFreehand = async (path) => {
+    if (path.length <= 1) return;
+    
+    if (currentTrailType === 'normal') {
+      const maxPoints = 50;
+      let downsampled = path;
+      if (path.length > maxPoints) {
+        const step = Math.ceil(path.length / maxPoints);
+        downsampled = [];
+        for (let j = 0; j < path.length; j += step) {
+          downsampled.push(path[j]);
+        }
+        if (downsampled[downsampled.length - 1] !== path[path.length - 1]) {
+          downsampled.push(path[path.length - 1]);
+        }
+      }
+
+      const coords = downsampled.map(p => `${p.lng},${p.lat}`).join(';');
+      
+      try {
+        const res = await fetch(`https://router.project-osrm.org/match/v1/foot/${coords}?geometries=geojson`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.code === 'Ok' && data.matchings && data.matchings.length > 0) {
+            const newPath = data.matchings[0].geometry.coordinates.map(coord => ({
+              lat: coord[1],
+              lng: coord[0]
+            }));
+            setTrailStrokes(prev => [...prev, { type: currentTrailType, path: newPath }]);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("OSRM Match error:", err);
+      }
     }
+    
+    setTrailStrokes(prev => [...prev, { type: currentTrailType, path }]);
   };
 
   const handleLoginSuccess = async (credentialResponse) => {
@@ -254,57 +288,6 @@ function App() {
     }
   };
 
-  const handleAutoRoute = async () => {
-    const newStrokes = [...trailStrokes];
-    let modified = false;
-
-    for (let i = 0; i < newStrokes.length; i++) {
-      const stroke = newStrokes[i];
-      if (stroke.type !== 'normal') continue; // Only for 'normal' roads
-      if (stroke.path.length < 2) continue;
-
-      // Downsample path to max 50 points
-      const maxPoints = 50;
-      let downsampled = stroke.path;
-      if (stroke.path.length > maxPoints) {
-        const step = Math.ceil(stroke.path.length / maxPoints);
-        downsampled = [];
-        for (let j = 0; j < stroke.path.length; j += step) {
-          downsampled.push(stroke.path[j]);
-        }
-        if (downsampled[downsampled.length - 1] !== stroke.path[stroke.path.length - 1]) {
-          downsampled.push(stroke.path[stroke.path.length - 1]);
-        }
-      }
-
-      // Format coordinates for OSRM: lng,lat;lng,lat
-      const coords = downsampled.map(p => `${p.lng},${p.lat}`).join(';');
-      
-      try {
-        const res = await fetch(`https://router.project-osrm.org/match/v1/foot/${coords}?geometries=geojson`);
-        if (!res.ok) continue;
-        const data = await res.json();
-        
-        if (data.code === 'Ok' && data.matchings && data.matchings.length > 0) {
-          const newPath = data.matchings[0].geometry.coordinates.map(coord => ({
-            lat: coord[1],
-            lng: coord[0]
-          }));
-          newStrokes[i] = { ...stroke, path: newPath };
-          modified = true;
-        }
-      } catch (err) {
-        console.error("OSRM Match error:", err);
-      }
-    }
-    
-    if (modified) {
-      setTrailStrokes(newStrokes);
-    } else {
-      alert("AI couldn't find a matching physical road for your blue trail. Please ensure it's drawn near mapped roads.");
-    }
-  };
-
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     const newUsername = e.target.username.value;
@@ -342,7 +325,7 @@ function App() {
               style={{ padding: '6px 12px', fontSize: '0.8rem', borderRadius: '50px' }}
               title="Toggle Map Style"
             >
-              {mapTheme === 'street' ? '🛰️ Satellite' : '🗺️ Street'}
+              {mapTheme === 'street' ? 'Satellite' : 'Street'}
             </button>
             <select 
               className="btn-secondary" 
@@ -401,7 +384,7 @@ function App() {
           {/* Profile Panel */}
           {showProfile && user && (
             <div className="floating-ui glass-panel" style={{ left: 'auto', right: '20px', width: '300px' }}>
-              <button className="btn-secondary" style={{ float: 'right', padding: '4px 8px' }} onClick={() => setShowProfile(false)}>✕</button>
+              <button className="btn-secondary" style={{ float: 'right', padding: '4px 8px' }} onClick={() => setShowProfile(false)}>X</button>
               <h3 style={{ marginBottom: '15px' }}>Your Profile</h3>
               
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -438,7 +421,7 @@ function App() {
                 style={{ position: 'absolute', top: '15px', right: '15px', padding: '4px 10px', minWidth: 'auto', borderRadius: '50%' }}
                 onClick={() => { setIsAddingPlace(false); setIsEditingPlace(false); }}
               >
-                ✕
+                X
               </button>
               <h3 style={{ marginBottom: '20px' }}>{isEditingPlace ? 'Edit Pin' : 'Add a new spot'}</h3>
               
@@ -527,16 +510,7 @@ function App() {
                             className={isTracking ? 'btn-primary' : 'btn-secondary'}
                             style={{ width: '100%', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                           >
-                            {isTracking ? '🛑 Stop GPS Tracking' : '📍 Start Live GPS Tracking'}
-                          </button>
-                          
-                          <button 
-                            type="button" 
-                            onClick={handleAutoRoute} 
-                            className="btn-secondary"
-                            style={{ width: '100%', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#8B5CF6', borderColor: 'rgba(139, 92, 246, 0.3)' }}
-                          >
-                            ✨ AI Snap to Roads
+                            {isTracking ? 'Stop GPS Tracking' : 'Start Live GPS Tracking'}
                           </button>
                         </>
                       )}
@@ -571,7 +545,7 @@ function App() {
                 style={{ position: 'absolute', top: '15px', right: '15px', padding: '4px 10px', minWidth: 'auto', borderRadius: '50%' }}
                 onClick={() => setSelectedPlace(null)}
               >
-                ✕
+                X
               </button>
               
               <h3 style={{ marginBottom: '15px', paddingRight: '30px' }}>{selectedPlace.title}</h3>
@@ -608,13 +582,13 @@ function App() {
               
               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>By {selectedPlace.createdBy || 'Unknown'}</span>
-                {selectedPlace.isAiSuggested && <span style={{ color: '#8B5CF6', fontWeight: 'bold' }}>✨ AI Tagged</span>}
+                {selectedPlace.isAiSuggested && <span style={{ color: '#8B5CF6', fontWeight: 'bold' }}>AI Tagged</span>}
                 <button 
                   onClick={() => handleUpvote(selectedPlace._id)}
                   className={selectedPlace.upvotes && user && selectedPlace.upvotes.includes(user.email) ? 'btn-primary' : 'btn-secondary'}
                   style={{ padding: '4px 8px', minWidth: 'auto', display: 'flex', alignItems: 'center', gap: '5px' }}
                 >
-                  <span style={{ fontSize: '1.2rem' }}>⛰️</span> {selectedPlace.upvotes ? selectedPlace.upvotes.length : 0}
+                  <span style={{ fontSize: '1.2rem' }}>^</span> {selectedPlace.upvotes ? selectedPlace.upvotes.length : 0}
                 </button>
               </div>
 
