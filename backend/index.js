@@ -271,6 +271,30 @@ app.post('/api/places/:id/comments', async (req, res) => {
   }
 });
 
+// Route for toggling an upvote
+app.post('/api/places/:id/upvote', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email required' });
+    
+    const place = await Place.findById(req.params.id);
+    if (!place) return res.status(404).json({ error: 'Place not found' });
+    
+    const index = place.upvotes.indexOf(email);
+    if (index === -1) {
+      place.upvotes.push(email);
+    } else {
+      place.upvotes.splice(index, 1);
+    }
+    
+    await place.save();
+    res.json(place);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Serve the frontend in production
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 app.use((req, res) => {

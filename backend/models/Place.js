@@ -54,6 +54,9 @@ const placeSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
   }],
   
+  // Array of user emails who upvoted
+  upvotes: [{ type: String }],
+  
   createdAt: { type: Date, default: Date.now }
 });
 

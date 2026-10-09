@@ -26,6 +26,7 @@ function App() {
   
   const [isEditingPlace, setIsEditingPlace] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [filterType, setFilterType] = useState('all'); // all, my_pins, scenic, danger
 
   // Fetch places from backend
   useEffect(() => {
@@ -192,6 +193,29 @@ function App() {
     }
   };
 
+  const handleUpvote = async (id) => {
+    if (!user) {
+      alert("Please sign in to upvote trails!");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/places/${id}/upvote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email })
+      });
+      if (res.ok) {
+        const updatedPlace = await res.json();
+        setPlaces(places.map(p => p._id === id ? updatedPlace : p));
+        if (selectedPlace && selectedPlace._id === id) {
+          setSelectedPlace(updatedPlace);
+        }
+      }
+    } catch (e) {
+      console.error("Error toggling upvote:", e);
+    }
+  };
+
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     const newUsername = e.target.username.value;
@@ -229,10 +253,21 @@ function App() {
               style={{ padding: '6px 12px', fontSize: '0.8rem', borderRadius: '50px' }}
               title="Toggle Map Style"
             >
-              {mapTheme === 'street' ? '🛰️ Satellite Map' : '🗺️ Street Map'}
+              {mapTheme === 'street' ? '🛰️ Satellite' : '🗺️ Street'}
             </button>
+            <select 
+              className="btn-secondary" 
+              style={{ padding: '6px 12px' }}
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+            >
+              <option value="all">All Trails</option>
+              {user && <option value="my_pins">My Trails</option>}
+              <option value="scenic">Scenic Trails</option>
+              <option value="danger">Dangerous Trails</option>
+            </select>
             {user ? (
-              <div className="user-profile" onClick={() => setShowProfile(!showProfile)} style={{ cursor: 'pointer' }}>
+              <div className="user-profile" onClick={() => setShowProfile(!showProfile)} style={{ cursor: 'pointer', marginLeft: '10px' }}>
                 {user.picture && <img src={user.picture} alt="Profile" />}
                 <span>{user.username || user.name}</span>
               </div>
@@ -256,7 +291,13 @@ function App() {
           
           {/* Map */}
           <Map 
-            places={places} 
+            places={places.filter(p => {
+              if (filterType === 'all') return true;
+              if (filterType === 'my_pins') return user && (p.authorId === user._id || p.createdBy === user.username);
+              if (filterType === 'danger') return (p.trailStrokes && p.trailStrokes.some(s => s.type === 'danger')) || (p.trailPOIs && p.trailPOIs.some(poi => poi.poiType === 'danger'));
+              if (filterType === 'scenic') return p.trailPOIs && p.trailPOIs.some(poi => poi.poiType === 'scenic');
+              return true;
+            })} 
             onMapClick={handleMapClick} 
             onMarkerClick={handleMarkerClick} 
             mapStyleType={mapTheme} 
@@ -455,6 +496,13 @@ function App() {
               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>By {selectedPlace.createdBy || 'Unknown'}</span>
                 {selectedPlace.isAiSuggested && <span style={{ color: '#8B5CF6', fontWeight: 'bold' }}>✨ AI Tagged</span>}
+                <button 
+                  onClick={() => handleUpvote(selectedPlace._id)}
+                  className={selectedPlace.upvotes && user && selectedPlace.upvotes.includes(user.email) ? 'btn-primary' : 'btn-secondary'}
+                  style={{ padding: '4px 8px', minWidth: 'auto', display: 'flex', alignItems: 'center', gap: '5px' }}
+                >
+                  <span style={{ fontSize: '1.2rem' }}>⛰️</span> {selectedPlace.upvotes ? selectedPlace.upvotes.length : 0}
+                </button>
               </div>
 
               {user && (selectedPlace.authorId === user._id || selectedPlace.createdBy === user.username) && (
