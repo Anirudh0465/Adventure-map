@@ -29,6 +29,7 @@ function App() {
   const [filterType, setFilterType] = useState('all'); // all, my_pins, scenic, danger
   const [isTracking, setIsTracking] = useState(false);
   const [trackingId, setTrackingId] = useState(null);
+  const [isLegendExpanded, setIsLegendExpanded] = useState(window.innerWidth > 768);
 
   // Fetch places from backend
   useEffect(() => {
@@ -658,23 +659,31 @@ function App() {
           )}
           {/* Legend */}
           <div className="floating-ui glass-panel" style={{ bottom: '20px', left: '20px', top: 'auto', right: 'auto', width: 'auto', padding: '15px 20px', zIndex: 100 }}>
-            <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Legend</h4>
-            <div style={{ display: 'flex', gap: '30px', fontSize: '0.8rem' }}>
-              <div>
-                <strong style={{ display: 'block', margin: '0 0 8px 0', color: 'var(--text-primary)' }}>Pins</strong>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}><div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#000', border: '2px solid #FFF' }}></div> Saved Destination</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}><div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#8B5CF6', border: '2px solid #FFF' }}></div> Selected Location</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#3B82F6', border: '2px solid #FFF' }}></div> Scenic / Rest</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#EF4444', border: '2px solid #FFF' }}></div> Danger / Blocked</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#8B5CF6', border: '2px solid #FFF' }}></div> Point of Interest</div>
-              </div>
-              <div>
-                <strong style={{ display: 'block', margin: '0 0 8px 0', color: 'var(--text-primary)' }}>Trails</strong>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}><div style={{ width: '20px', height: '4px', backgroundColor: '#3B82F6', borderRadius: '2px' }}></div> Normal Path (Blue)</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}><div style={{ width: '20px', height: '4px', backgroundColor: '#EAB308', borderRadius: '2px' }}></div> Moderate Zone (Yellow)</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '20px', height: '4px', backgroundColor: '#EF4444', borderRadius: '2px' }}></div> Danger Zone (Red)</div>
-              </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setIsLegendExpanded(!isLegendExpanded)}>
+              <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Legend</h4>
+              <button className="btn-secondary" style={{ padding: '2px 8px', marginLeft: '15px', fontSize: '0.8rem' }}>
+                {isLegendExpanded ? '-' : '+'}
+              </button>
             </div>
+            
+            {isLegendExpanded && (
+              <div style={{ display: 'flex', gap: '30px', fontSize: '0.8rem', marginTop: '15px' }}>
+                <div>
+                  <strong style={{ display: 'block', margin: '0 0 8px 0', color: 'var(--text-primary)' }}>Pins</strong>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}><div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#000', border: '2px solid #FFF' }}></div> Saved Destination</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}><div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#8B5CF6', border: '2px solid #FFF' }}></div> Selected Location</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#3B82F6', border: '2px solid #FFF' }}></div> Scenic / Rest</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#EF4444', border: '2px solid #FFF' }}></div> Danger / Blocked</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#8B5CF6', border: '2px solid #FFF' }}></div> Point of Interest</div>
+                </div>
+                <div>
+                  <strong style={{ display: 'block', margin: '0 0 8px 0', color: 'var(--text-primary)' }}>Trails</strong>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}><div style={{ width: '20px', height: '4px', backgroundColor: '#3B82F6', borderRadius: '2px' }}></div> Normal Path (Blue)</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}><div style={{ width: '20px', height: '4px', backgroundColor: '#EAB308', borderRadius: '2px' }}></div> Moderate Zone (Yellow)</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '20px', height: '4px', backgroundColor: '#EF4444', borderRadius: '2px' }}></div> Danger Zone (Red)</div>
+                </div>
+              </div>
+            )}
           </div>
           
         </main>
