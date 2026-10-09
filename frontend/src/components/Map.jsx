@@ -154,11 +154,19 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
     map.current.on('mousedown', onMouseDown);
     map.current.on('mousemove', onMouseMove);
     map.current.on('mouseup', onMouseUp);
+    
+    map.current.on('touchstart', onMouseDown);
+    map.current.on('touchmove', onMouseMove);
+    map.current.on('touchend', onMouseUp);
 
     return () => {
       map.current.off('mousedown', onMouseDown);
       map.current.off('mousemove', onMouseMove);
       map.current.off('mouseup', onMouseUp);
+      
+      map.current.off('touchstart', onMouseDown);
+      map.current.off('touchmove', onMouseMove);
+      map.current.off('touchend', onMouseUp);
     };
   }, [isDrawingFreehand, onDrawFreehand]);
 
