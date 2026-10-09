@@ -255,6 +255,57 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
       <svg 
         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10 }}
       >
+        {/* Draw connections to merge lines automatically */}
+        {(() => {
+          let connections = [];
+          
+          // 1. Connect Destination Pin to the first stroke
+          if (selectedLocation && trailStrokes.length > 0 && trailStrokes[0].path && trailStrokes[0].path.length > 0) {
+            const start = projectToSVG(selectedLocation.lng, selectedLocation.lat);
+            const end = projectToSVG(trailStrokes[0].path[0].lng, trailStrokes[0].path[0].lat);
+            connections.push(
+              <path key="conn-dest" d={`M ${start.x},${start.y} L ${end.x},${end.y}`} fill="none" stroke="#3B82F6" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+            );
+          }
+
+          // 2. Connect consecutive strokes to form a continuous trail
+          for (let i = 0; i < trailStrokes.length - 1; i++) {
+            const currentStroke = trailStrokes[i];
+            const nextStroke = trailStrokes[i + 1];
+            
+            if (currentStroke.path && currentStroke.path.length > 0 && nextStroke.path && nextStroke.path.length > 0) {
+              const currentLastPoint = currentStroke.path[currentStroke.path.length - 1];
+              const start = projectToSVG(currentLastPoint.lng, currentLastPoint.lat);
+              const end = projectToSVG(nextStroke.path[0].lng, nextStroke.path[0].lat);
+              
+              // Use the color of the NEXT stroke for the connecting line
+              let strokeColor = '#3B82F6';
+              if (nextStroke.type === 'moderate') strokeColor = '#EAB308';
+              if (nextStroke.type === 'danger') strokeColor = '#EF4444';
+
+              connections.push(
+                <path key={`conn-${i}`} d={`M ${start.x},${start.y} L ${end.x},${end.y}`} fill="none" stroke={strokeColor} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+              );
+            }
+          }
+          
+          // 3. Connect the last stroke to the currently active drawing path
+          if (trailStrokes.length > 0 && activePath.length > 0) {
+             const lastStroke = trailStrokes[trailStrokes.length - 1];
+             if (lastStroke.path && lastStroke.path.length > 0) {
+               const lastPoint = lastStroke.path[lastStroke.path.length - 1];
+               const start = projectToSVG(lastPoint.lng, lastPoint.lat);
+               const end = projectToSVG(activePath[0].lng, activePath[0].lat);
+               connections.push(
+                 <path key="conn-active" d={`M ${start.x},${start.y} L ${end.x},${end.y}`} fill="none" stroke="#3B82F6" strokeWidth="6" strokeDasharray="6 6" strokeLinecap="round" strokeLinejoin="round" />
+               );
+             }
+          }
+          
+          return connections;
+        })()}
+
+        {/* Draw the actual strokes */}
         {trailStrokes.map((stroke, i) => {
           if (!stroke.path || stroke.path.length < 2) return null;
           const points = stroke.path.map(p => projectToSVG(p.lng, p.lat));
