@@ -423,14 +423,15 @@ function App() {
             <div className="floating-ui glass-panel">
               <button 
                 className="btn-secondary" 
-                style={{ position: 'absolute', top: '15px', right: '15px', padding: '4px 10px', minWidth: 'auto', borderRadius: '50%' }}
+                style={{ position: 'absolute', top: '15px', right: '15px', padding: '4px 10px', minWidth: 'auto', borderRadius: '50%', display: isDrawingTrail ? 'none' : 'block' }}
                 onClick={() => { setIsAddingPlace(false); setIsEditingPlace(false); }}
               >
                 X
               </button>
-              <h3 style={{ marginBottom: '20px' }}>{isEditingPlace ? 'Edit Pin' : 'Add a new spot'}</h3>
+              {!isDrawingTrail && <h3 style={{ marginBottom: '20px' }}>{isEditingPlace ? 'Edit Pin' : 'Add a new spot'}</h3>}
               
               <form onSubmit={handleSubmitPlace}>
+                <div style={{ display: isDrawingTrail ? 'none' : 'block' }}>
                 <div className="form-group">
                   <label>Selected Coordinates</label>
                   <div style={{ fontSize: '0.8rem', color: 'var(--accent-primary)' }}>
@@ -461,8 +462,10 @@ function App() {
                   ></textarea>
                 </div>
                 
+                </div>
+                
                 <div className="form-group">
-                  <label>Trail / Path</label>
+                  {!isDrawingTrail && <label>Trail / Path</label>}
                   {!isDrawingTrail ? (
                     <button type="button" className="btn-secondary" onClick={() => setIsDrawingTrail(true)}>
                       Draw Trail on Map ({trailStrokes.length} paths, {trailPOIs.length} pins)
@@ -523,20 +526,22 @@ function App() {
                   )}
                 </div>
                 
-                {/* Photo upload */}
-                <div className="form-group">
-                  <label>Photo (AI will extract details)</label>
-                  <input 
-                    type="file" 
-                    className="form-control" 
-                    accept="image/*"
-                    onChange={(e) => setPhoto(e.target.files[0])}
-                  />
-                </div>
-                
-                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                  <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => { setIsAddingPlace(false); setIsEditingPlace(false); }}>Cancel</button>
-                  <button type="submit" className="btn-primary" style={{ flex: 2 }}>{isEditingPlace ? 'Save Changes' : 'Drop Pin'}</button>
+                <div style={{ display: isDrawingTrail ? 'none' : 'block' }}>
+                  {/* Photo upload */}
+                  <div className="form-group">
+                    <label>Photo (AI will extract details)</label>
+                    <input 
+                      type="file" 
+                      className="form-control" 
+                      accept="image/*"
+                      onChange={(e) => setPhoto(e.target.files[0])}
+                    />
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                    <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => { setIsAddingPlace(false); setIsEditingPlace(false); }}>Cancel</button>
+                    <button type="submit" className="btn-primary" style={{ flex: 2 }}>{isEditingPlace ? 'Save Changes' : 'Drop Pin'}</button>
+                  </div>
                 </div>
               </form>
             </div>

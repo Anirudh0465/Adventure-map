@@ -74,6 +74,12 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
       }
     });
 
+    map.current.on('contextmenu', (e) => {
+      if (onMapClickRef.current) {
+        onMapClickRef.current(e.lngLat, true);
+      }
+    });
+
     map.current.on('click', (e) => {
       if (onMapClickRef.current) {
         onMapClickRef.current(e.lngLat, false);
