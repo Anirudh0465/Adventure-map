@@ -27,6 +27,8 @@ function App() {
   const [isEditingPlace, setIsEditingPlace] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [filterType, setFilterType] = useState('all'); // all, my_pins, scenic, danger
+  const [isTracking, setIsTracking] = useState(false);
+  const [trackingId, setTrackingId] = useState(null);
 
   // Fetch places from backend
   useEffect(() => {
@@ -213,6 +215,42 @@ function App() {
       }
     } catch (e) {
       console.error("Error toggling upvote:", e);
+    }
+  };
+
+  const toggleTracking = () => {
+    if (!isTracking) {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser.");
+        return;
+      }
+      
+      // Start tracking
+      setTrailStrokes(prev => [...prev, { type: currentTrailType, path: [] }]);
+      
+      const id = navigator.geolocation.watchPosition((position) => {
+        const { latitude, longitude } = position.coords;
+        setTrailStrokes(prev => {
+          const newStrokes = [...prev];
+          const lastStrokeIndex = newStrokes.length - 1;
+          if (lastStrokeIndex >= 0) {
+            newStrokes[lastStrokeIndex] = {
+              ...newStrokes[lastStrokeIndex],
+              path: [...newStrokes[lastStrokeIndex].path, { lat: latitude, lng: longitude }]
+            };
+          }
+          return newStrokes;
+        });
+      }, (err) => {
+        console.error("GPS Error:", err);
+      }, { enableHighAccuracy: true });
+      
+      setTrackingId(id);
+      setIsTracking(true);
+    } else {
+      if (trackingId !== null) navigator.geolocation.clearWatch(trackingId);
+      setIsTracking(false);
+      setTrackingId(null);
     }
   };
 
@@ -425,8 +463,21 @@ function App() {
                         </select>
                       )}
 
-                      <button type="button" className="btn-secondary" onClick={() => { setIsDrawingTrail(false); setTrailStrokes([]); setTrailPOIs([]); }} style={{ marginRight: '10px', fontSize: '0.8rem' }}>Clear</button>
-                      <button type="button" className="btn-primary" onClick={() => setIsDrawingTrail(false)} style={{ fontSize: '0.8rem', padding: '6px 12px' }}>Done Drawing</button>
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                        <button type="button" className="btn-secondary" onClick={() => { setIsDrawingTrail(false); setTrailStrokes([]); setTrailPOIs([]); }} style={{ flex: 1, fontSize: '0.8rem' }}>Clear</button>
+                        <button type="button" className="btn-primary" onClick={() => setIsDrawingTrail(false)} style={{ flex: 1, fontSize: '0.8rem', padding: '6px 12px' }}>Done Drawing</button>
+                      </div>
+
+                      {drawingMode === 'path' && (
+                        <button 
+                          type="button" 
+                          onClick={toggleTracking} 
+                          className={isTracking ? 'btn-primary' : 'btn-secondary'}
+                          style={{ width: '100%', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                        >
+                          {isTracking ? '🛑 Stop GPS Tracking' : '📍 Start Live GPS Tracking'}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
