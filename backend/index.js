@@ -199,6 +199,78 @@ app.delete('/api/places/:id', async (req, res) => {
   }
 });
 
+// Route for updating a place (edit)
+app.put('/api/places/:id', upload.single('photo'), async (req, res) => {
+  try {
+    const { title, description, lat, lng, email, trailStrokes, trailPOIs } = req.body;
+    
+    // Find the place
+    const place = await Place.findById(req.params.id);
+    if (!place) return res.status(404).json({ error: 'Place not found' });
+    
+    // Check ownership
+    const user = await User.findOne({ email });
+    if (!user) return res.status(401).json({ error: 'User not found' });
+    
+    if (place.authorId && place.authorId.toString() !== user._id.toString() && place.createdBy !== user.username) {
+      return res.status(403).json({ error: 'Not authorized to edit this place' });
+    }
+    
+    let parsedTrailStrokes = place.trailStrokes;
+    if (trailStrokes) {
+      try { parsedTrailStrokes = JSON.parse(trailStrokes); } catch(e) {}
+    }
+    
+    let parsedTrailPOIs = place.trailPOIs;
+    if (trailPOIs) {
+      try { parsedTrailPOIs = JSON.parse(trailPOIs); } catch(e) {}
+    }
+
+    if (title) place.title = title;
+    if (description !== undefined) place.description = description;
+    if (lat && lng) place.coordinates = { lat: Number(lat), lng: Number(lng) };
+    place.trailStrokes = parsedTrailStrokes;
+    place.trailPOIs = parsedTrailPOIs;
+    
+    if (req.file) {
+      place.photoUrl = `/uploads/${req.file.filename}`;
+    }
+
+    await place.save();
+    res.json(place);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Route for adding a comment
+app.post('/api/places/:id/comments', async (req, res) => {
+  try {
+    const { email, text } = req.body;
+    
+    const user = await User.findOne({ email });
+    if (!user) return res.status(401).json({ error: 'User not found' });
+    
+    const place = await Place.findById(req.params.id);
+    if (!place) return res.status(404).json({ error: 'Place not found' });
+    
+    const newComment = {
+      authorId: user._id,
+      username: user.username || user.name,
+      text: text
+    };
+    
+    place.comments.push(newComment);
+    await place.save();
+    
+    res.json(place);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Serve the frontend in production
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 app.use((req, res) => {

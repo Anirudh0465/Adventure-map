@@ -46,6 +46,13 @@ const placeSchema = new mongoose.Schema({
     lng: { type: Number, required: true },
     poiType: { type: String, required: true } // 'danger', 'scenic', 'blocked'
   }],
+  // Array of comments on the trail
+  comments: [{
+    authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    username: { type: String, required: true },
+    text: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now }
+  }],
   
   createdAt: { type: Date, default: Date.now }
 });

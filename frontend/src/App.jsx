@@ -23,6 +23,9 @@ function App() {
   const [trailPOIs, setTrailPOIs] = useState([]);
   const [currentTrailType, setCurrentTrailType] = useState('normal'); // normal, moderate, danger
   const [currentPoiType, setCurrentPoiType] = useState('scenic'); // scenic, danger, poi
+  
+  const [isEditingPlace, setIsEditingPlace] = useState(false);
+  const [commentText, setCommentText] = useState('');
 
   // Fetch places from backend
   useEffect(() => {
@@ -110,27 +113,37 @@ function App() {
     }
     
     try {
-      const response = await fetch('/api/places', {
-        method: 'POST',
+      const url = isEditingPlace ? `/api/places/${selectedPlace._id}` : '/api/places';
+      const method = isEditingPlace ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method: method,
         body: formData
       });
       
       const newPlace = await response.json();
-      setPlaces([newPlace, ...places]);
+      
+      if (isEditingPlace) {
+        setPlaces(places.map(p => p._id === newPlace._id ? newPlace : p));
+        setSelectedPlace(newPlace);
+      } else {
+        setPlaces([newPlace, ...places]);
+      }
       
       // Reset form
       setIsAddingPlace(false);
+      setIsEditingPlace(false);
       setTitle('');
       setDescription('');
       setPhoto(null);
-      setSelectedLocation(null);
+      if (!isEditingPlace) setSelectedLocation(null);
       setIsDrawingTrail(false);
       setTrailStrokes([]);
       setTrailPOIs([]);
       setDrawingMode('path');
     } catch (err) {
-      console.error("Error creating place:", err);
-      alert("Failed to drop pin. Is the backend running?");
+      console.error("Error saving place:", err);
+      alert("Failed to save pin. Is the backend running?");
     }
   };
 
@@ -151,6 +164,31 @@ function App() {
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleAddComment = async (e) => {
+    e.preventDefault();
+    if (!commentText.trim()) return;
+    
+    try {
+      const res = await fetch(`/api/places/${selectedPlace._id}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, text: commentText })
+      });
+      
+      if (res.ok) {
+        const updatedPlace = await res.json();
+        setPlaces(places.map(p => p._id === updatedPlace._id ? updatedPlace : p));
+        setSelectedPlace(updatedPlace);
+        setCommentText('');
+      } else {
+        const err = await res.json();
+        alert(err.error);
+      }
+    } catch (e) {
+      console.error("Error posting comment:", e);
     }
   };
 
@@ -222,9 +260,9 @@ function App() {
             onMapClick={handleMapClick} 
             onMarkerClick={handleMarkerClick} 
             mapStyleType={mapTheme} 
-            trailStrokes={isDrawingTrail ? trailStrokes : (selectedPlace?.trailStrokes || [])}
-            trailPOIs={isDrawingTrail ? trailPOIs : (selectedPlace?.trailPOIs || [])}
-            selectedLocation={isAddingPlace ? selectedLocation : (selectedPlace?.coordinates || null)}
+            trailStrokes={(isAddingPlace || isEditingPlace) ? trailStrokes : (selectedPlace?.trailStrokes || [])}
+            trailPOIs={(isAddingPlace || isEditingPlace) ? trailPOIs : (selectedPlace?.trailPOIs || [])}
+            selectedLocation={(isAddingPlace || isEditingPlace) ? selectedLocation : (selectedPlace?.coordinates || null)}
             isDrawingFreehand={isDrawingTrail && drawingMode === 'path'}
             onDrawFreehand={handleDrawFreehand}
             currentDrawingType={currentTrailType}
@@ -263,9 +301,16 @@ function App() {
           )}
           
           {/* Floating UI Panel (Add Place Form) */}
-          {isAddingPlace && (
+          {(isAddingPlace || isEditingPlace) && (
             <div className="floating-ui glass-panel">
-              <h3 style={{ marginBottom: '20px' }}>Add a new spot</h3>
+              <button 
+                className="btn-secondary" 
+                style={{ position: 'absolute', top: '15px', right: '15px', padding: '4px 10px', minWidth: 'auto', borderRadius: '50%' }}
+                onClick={() => { setIsAddingPlace(false); setIsEditingPlace(false); }}
+              >
+                ✕
+              </button>
+              <h3 style={{ marginBottom: '20px' }}>{isEditingPlace ? 'Edit Pin' : 'Add a new spot'}</h3>
               
               <form onSubmit={handleSubmitPlace}>
                 <div className="form-group">
@@ -357,16 +402,16 @@ function App() {
                 </div>
                 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                  <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setIsAddingPlace(false)}>Cancel</button>
-                  <button type="submit" className="btn-primary" style={{ flex: 2 }}>Drop Pin</button>
+                  <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => { setIsAddingPlace(false); setIsEditingPlace(false); }}>Cancel</button>
+                  <button type="submit" className="btn-primary" style={{ flex: 2 }}>{isEditingPlace ? 'Save Changes' : 'Drop Pin'}</button>
                 </div>
               </form>
             </div>
           )}
           
           {/* Floating UI Panel (View Place Details) */}
-          {selectedPlace && !isAddingPlace && (
-            <div className="floating-ui glass-panel" style={{ position: 'relative' }}>
+          {selectedPlace && !isAddingPlace && !isEditingPlace && (
+            <div className="floating-ui glass-panel" style={{ position: 'relative', maxHeight: '80vh', overflowY: 'auto' }}>
               <button 
                 className="btn-secondary" 
                 style={{ position: 'absolute', top: '15px', right: '15px', padding: '4px 10px', minWidth: 'auto', borderRadius: '50%' }}
@@ -413,14 +458,67 @@ function App() {
               </div>
 
               {user && (selectedPlace.authorId === user._id || selectedPlace.createdBy === user.username) && (
-                <button 
-                  className="btn-secondary" 
-                  style={{ width: '100%', marginTop: '15px', color: '#EF4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
-                  onClick={() => handleDeletePlace(selectedPlace._id)}
-                >
-                  Delete Pin
-                </button>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                  <button 
+                    className="btn-primary" 
+                    style={{ flex: 1 }}
+                    onClick={() => {
+                      setTitle(selectedPlace.title);
+                      setDescription(selectedPlace.description || '');
+                      setTrailStrokes(selectedPlace.trailStrokes || []);
+                      setTrailPOIs(selectedPlace.trailPOIs || []);
+                      setSelectedLocation({ lat: selectedPlace.coordinates.lat, lng: selectedPlace.coordinates.lng });
+                      setIsEditingPlace(true);
+                    }}
+                  >
+                    Edit Pin
+                  </button>
+                  <button 
+                    className="btn-secondary" 
+                    style={{ flex: 1, color: '#EF4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                    onClick={() => handleDeletePlace(selectedPlace._id)}
+                  >
+                    Delete
+                  </button>
+                </div>
               )}
+
+              {/* Comments Section */}
+              <div style={{ marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px' }}>
+                <h4 style={{ marginBottom: '10px', fontSize: '0.9rem' }}>Comments ({selectedPlace.comments ? selectedPlace.comments.length : 0})</h4>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '15px', maxHeight: '150px', overflowY: 'auto' }}>
+                  {selectedPlace.comments && selectedPlace.comments.map((comment, idx) => (
+                    <div key={idx} style={{ background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                        <strong style={{ fontSize: '0.8rem', color: 'var(--accent-primary)' }}>{comment.username}</strong>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{new Date(comment.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      <p style={{ fontSize: '0.85rem', margin: 0 }}>{comment.text}</p>
+                    </div>
+                  ))}
+                  {(!selectedPlace.comments || selectedPlace.comments.length === 0) && (
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>No comments yet.</p>
+                  )}
+                </div>
+
+                {user ? (
+                  <form onSubmit={handleAddComment} style={{ display: 'flex', gap: '8px' }}>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      placeholder="Add a comment..." 
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      style={{ flex: 1, padding: '8px' }}
+                    />
+                    <button type="submit" className="btn-primary" style={{ padding: '8px 12px' }}>Post</button>
+                  </form>
+                ) : (
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Login to leave a comment.</p>
+                )}
+              </div>
+
             </div>
           )}
           {/* Legend */}
