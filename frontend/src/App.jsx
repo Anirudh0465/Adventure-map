@@ -505,9 +505,23 @@ function App() {
                         </select>
                       )}
 
-                      <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                        <button type="button" className="btn-secondary" onClick={() => { setIsDrawingTrail(false); setTrailStrokes([]); setTrailPOIs([]); }} style={{ flex: 1, fontSize: '0.8rem' }}>Clear</button>
-                        <button type="button" className="btn-primary" onClick={() => setIsDrawingTrail(false)} style={{ flex: 1, fontSize: '0.8rem', padding: '6px 12px' }}>Done Drawing</button>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                        <button 
+                          type="button" 
+                          className="btn-secondary" 
+                          onClick={() => {
+                            if (drawingMode === 'path') {
+                              setTrailStrokes(prev => prev.slice(0, -1));
+                            } else {
+                              setTrailPOIs(prev => prev.slice(0, -1));
+                            }
+                          }} 
+                          style={{ flex: 1, fontSize: '0.8rem', padding: '6px 8px' }}
+                        >
+                          Undo
+                        </button>
+                        <button type="button" className="btn-secondary" onClick={() => { setIsDrawingTrail(false); setTrailStrokes([]); setTrailPOIs([]); }} style={{ flex: 1, fontSize: '0.8rem', padding: '6px 8px' }}>Clear All</button>
+                        <button type="button" className="btn-primary" onClick={() => setIsDrawingTrail(false)} style={{ flex: 1, fontSize: '0.8rem', padding: '6px 8px' }}>Done</button>
                       </div>
 
                       {drawingMode === 'path' && (
