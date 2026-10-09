@@ -68,6 +68,11 @@ function App() {
   const handleDrawFreehand = async (path) => {
     if (path.length <= 1) return;
     
+    const strokeId = Date.now() + Math.random(); // Unique ID for this optimistic stroke
+    
+    // Optimistically draw the exact path the user drew immediately
+    setTrailStrokes(prev => [...prev, { id: strokeId, type: currentTrailType, path }]);
+
     if (currentTrailType === 'normal') {
       const maxPoints = 50;
       let downsampled = path;
@@ -93,7 +98,8 @@ function App() {
               lat: coord[1],
               lng: coord[0]
             }));
-            setTrailStrokes(prev => [...prev, { type: currentTrailType, path: newPath }]);
+            // Replace the optimistic path with the snapped AI path
+            setTrailStrokes(prev => prev.map(s => s.id === strokeId ? { ...s, path: newPath } : s));
             return;
           }
         }
@@ -101,8 +107,6 @@ function App() {
         console.error("OSRM Match error:", err);
       }
     }
-    
-    setTrailStrokes(prev => [...prev, { type: currentTrailType, path }]);
   };
 
   const handleLoginSuccess = async (credentialResponse) => {

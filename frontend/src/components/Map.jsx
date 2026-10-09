@@ -116,8 +116,20 @@ export default function Map({ places, onMapClick, onMarkerClick, mapStyleType = 
     if (!map.current) return;
     if (isDrawingFreehand) {
       map.current.dragPan.disable();
+      map.current.touchZoomRotate.disable();
+      map.current.scrollZoom.disable();
+      map.current.keyboard.disable();
+      map.current.doubleClickZoom.disable();
+      map.current.dragRotate.disable();
+      if (mapContainer.current) mapContainer.current.style.touchAction = 'none';
     } else {
       map.current.dragPan.enable();
+      map.current.touchZoomRotate.enable();
+      map.current.scrollZoom.enable();
+      map.current.keyboard.enable();
+      map.current.doubleClickZoom.enable();
+      map.current.dragRotate.enable();
+      if (mapContainer.current) mapContainer.current.style.touchAction = 'auto';
     }
   }, [isDrawingFreehand]);
 
