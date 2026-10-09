@@ -254,6 +254,57 @@ function App() {
     }
   };
 
+  const handleAutoRoute = async () => {
+    const newStrokes = [...trailStrokes];
+    let modified = false;
+
+    for (let i = 0; i < newStrokes.length; i++) {
+      const stroke = newStrokes[i];
+      if (stroke.type !== 'normal') continue; // Only for 'normal' roads
+      if (stroke.path.length < 2) continue;
+
+      // Downsample path to max 50 points
+      const maxPoints = 50;
+      let downsampled = stroke.path;
+      if (stroke.path.length > maxPoints) {
+        const step = Math.ceil(stroke.path.length / maxPoints);
+        downsampled = [];
+        for (let j = 0; j < stroke.path.length; j += step) {
+          downsampled.push(stroke.path[j]);
+        }
+        if (downsampled[downsampled.length - 1] !== stroke.path[stroke.path.length - 1]) {
+          downsampled.push(stroke.path[stroke.path.length - 1]);
+        }
+      }
+
+      // Format coordinates for OSRM: lng,lat;lng,lat
+      const coords = downsampled.map(p => `${p.lng},${p.lat}`).join(';');
+      
+      try {
+        const res = await fetch(`https://router.project-osrm.org/match/v1/foot/${coords}?geometries=geojson`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        
+        if (data.code === 'Ok' && data.matchings && data.matchings.length > 0) {
+          const newPath = data.matchings[0].geometry.coordinates.map(coord => ({
+            lat: coord[1],
+            lng: coord[0]
+          }));
+          newStrokes[i] = { ...stroke, path: newPath };
+          modified = true;
+        }
+      } catch (err) {
+        console.error("OSRM Match error:", err);
+      }
+    }
+    
+    if (modified) {
+      setTrailStrokes(newStrokes);
+    } else {
+      alert("AI couldn't find a matching physical road for your blue trail. Please ensure it's drawn near mapped roads.");
+    }
+  };
+
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     const newUsername = e.target.username.value;
@@ -469,14 +520,25 @@ function App() {
                       </div>
 
                       {drawingMode === 'path' && (
-                        <button 
-                          type="button" 
-                          onClick={toggleTracking} 
-                          className={isTracking ? 'btn-primary' : 'btn-secondary'}
-                          style={{ width: '100%', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                        >
-                          {isTracking ? '🛑 Stop GPS Tracking' : '📍 Start Live GPS Tracking'}
-                        </button>
+                        <>
+                          <button 
+                            type="button" 
+                            onClick={toggleTracking} 
+                            className={isTracking ? 'btn-primary' : 'btn-secondary'}
+                            style={{ width: '100%', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                          >
+                            {isTracking ? '🛑 Stop GPS Tracking' : '📍 Start Live GPS Tracking'}
+                          </button>
+                          
+                          <button 
+                            type="button" 
+                            onClick={handleAutoRoute} 
+                            className="btn-secondary"
+                            style={{ width: '100%', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#8B5CF6', borderColor: 'rgba(139, 92, 246, 0.3)' }}
+                          >
+                            ✨ AI Snap to Roads
+                          </button>
+                        </>
                       )}
                     </div>
                   )}
